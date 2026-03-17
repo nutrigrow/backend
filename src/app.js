@@ -1,17 +1,58 @@
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
+const helmet = require('helmet');
+const hpp = require('hpp');
+const passport = require('./config/passport');
 const routes = require('./routes');
+const errorHandler = require('./middlewares/errorHandler.middleware');
+//const { globalLimiter } = require('./middlewares/rateLimiter.middleware');
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(morgan('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// ============================================
+// SECURITY MIDDLEWARE
+// ============================================
 
-// Routes
+// Set security HTTP headers
+app.use(helmet());
+
+// Rate limiting
+//app.use(globalLimiter);
+
+// Prevent HTTP Parameter Pollution
+app.use(hpp());
+
+// CORS configuration
+app.use(
+    cors({
+        origin: process.env.CORS_ORIGIN
+            ? process.env.CORS_ORIGIN.split(',')
+            : ['http://localhost:3000'],
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+    })
+);
+
+// ============================================
+// BODY PARSING & LOGGING
+// ============================================
+
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// ============================================
+// PASSPORT (Google OAuth)
+// ============================================
+
+app.use(passport.initialize());
+
+// ============================================
+// ROUTES
+// ============================================
+
 app.use('/api', routes);
 
 // Health check
@@ -19,24 +60,23 @@ app.get('/', (req, res) => {
     res.json({
         status: 'success',
         message: 'NutriGrow Backend API is running 🚀',
+        version: '1.0.0',
     });
 });
+
+// ============================================
+// ERROR HANDLING
+// ============================================
 
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({
-        status: 'error',
-        message: `Route ${req.originalUrl} not found`,
+        status: 'fail',
+        message: `Route ${req.originalUrl} tidak ditemukan`,
     });
 });
 
-// Global error handler
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(err.status || 500).json({
-        status: 'error',
-        message: err.message || 'Internal Server Error',
-    });
-});
+// Global error handler (must be last)
+app.use(errorHandler);
 
 module.exports = app;

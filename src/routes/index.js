@@ -1,17 +1,16 @@
 const express = require('express');
 const router = express.Router();
 
-// Import route modules
-// const userRoutes = require('./userRoutes');
+const authRoutes = require('./auth.routes');
 
-// Mount routes
-// router.use('/users', userRoutes);
+// Mount route modules
+router.use('/auth', authRoutes);
 
-// Example route
+// Health check for API
 router.get('/hello', (req, res) => {
     res.json({
         status: 'success',
-        message: 'Hello from NutriGrow API! 👋',
+        message: 'Hello from NutriGrow API!',
     });
 });
 

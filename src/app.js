@@ -24,11 +24,21 @@ app.use(helmet());
 app.use(hpp());
 
 // CORS configuration
-app.use(
+/* app.use(
     cors({
         origin: process.env.CORS_ORIGIN
             ? process.env.CORS_ORIGIN.split(',')
             : ['http://localhost:3000'],
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+    })
+); */
+
+// CORS configuration
+app.use(
+    cors({
+        origin: true, // <-- Ini yang diubah agar otomatis mengizinkan origin yang me-request
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
         allowedHeaders: ['Content-Type', 'Authorization'],

@@ -65,6 +65,11 @@ enum StatusKonsultasi {
   CANCELLED
 }
 
+enum MetodePengiriman {
+  STANDARD
+  EXPRESS
+}
+
 // ============================================
 // TABLE DEFINITIONS
 // ============================================
@@ -85,8 +90,10 @@ model User {
   logKesehatanIbu LogKesehatanIbu[]
   transaksi       Transaksi[]
   konsultasi      Konsultasi[]     @relation("PasienKonsultasi")
-  refreshTokens   RefreshToken[]
-  profilAhliGizi  ProfilAhliGizi?
+  refreshTokens    RefreshToken[]
+  profilAhliGizi   ProfilAhliGizi?
+  keranjang        Keranjang[]
+  alamatPengiriman AlamatPengiriman[]
 
   @@map("users")
 }
@@ -157,6 +164,7 @@ model ProdukNutrishop {
   updatedAt  DateTime       @updatedAt @map("updated_at")
 
   detailTransaksi DetailTransaksi[]
+  keranjang       Keranjang[]
 
   @@map("produk_nutrishop")
 }
@@ -172,13 +180,18 @@ model Transaksi {
   snapToken             String?        @map("snap_token")
   paymentType           String?        @map("payment_type")
   tanggalTransaksi      DateTime       @default(now()) @map("tanggal_transaksi")
-  paidAt                DateTime?      @map("paid_at")
-  createdAt             DateTime       @default(now()) @map("created_at")
-  updatedAt             DateTime       @updatedAt @map("updated_at")
+  paidAt                DateTime?         @map("paid_at")
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime          @updatedAt @map("updated_at")
+  
+  alamatId              Int?              @map("alamat_id")
+  metodePengiriman      MetodePengiriman? @map("metode_pengiriman")
+  biayaPengiriman       Int               @default(0) @map("biaya_pengiriman")
 
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   detailTransaksi DetailTransaksi[]
   konsultasi      Konsultasi?
+  alamat          AlamatPengiriman? @relation(fields: [alamatId], references: [id])
 
   @@index([userId])
   @@index([statusBayar])
@@ -272,4 +285,38 @@ model RefreshToken {
   @@index([userId])
   @@index([tokenHash])
   @@map("refresh_tokens")
+}
+
+model Keranjang {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  produkId  Int      @map("produk_id")
+  kuantitas Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  produk    ProdukNutrishop @relation(fields: [produkId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("keranjang")
+}
+
+model AlamatPengiriman {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @map("user_id")
+  namaPenerima  String   @map("nama_penerima")
+  noTelepon     String   @map("no_telepon")
+  alamatLengkap String   @map("alamat_lengkap")
+  kelurahan     String
+  kecamatan     String
+  kota          String
+  kodePos       String   @map("kode_pos")
+  isUtama       Boolean  @default(false) @map("is_utama")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaksi     Transaksi[] 
+
+  @@map("alamat_pengiriman")
 }

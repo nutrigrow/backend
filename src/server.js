@@ -3,7 +3,7 @@ const app = require('./app');
 const prisma = require('./config/database');
 
 const PORT = process.env.PORT || 5000;
-//bebek kaleyo enak banget
+
 // Graceful shutdown handler
 const gracefulShutdown = async (signal) => {
     console.log(`\n${signal} received. Shutting down gracefully...`);

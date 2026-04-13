@@ -320,3 +320,125 @@ model AlamatPengiriman {
 
   @@map("alamat_pengiriman")
 }
+
+model PertumbuhanLakiLaki {
+  id              Int     @id @default(autoincrement())
+  day             Int     @unique
+  l_height        Float?
+  m_height        Float?
+  s_height        Float?
+  sd4neg_height   Float?
+  sd3neg_height   Float?
+  sd2neg_height   Float?
+  sd1neg_height   Float?
+  sd0_height      Float?
+  sd1_height      Float?
+  sd2_height      Float?
+  sd3_height      Float?
+  sd4_height      Float?
+  p01_height      Float?
+  p1_height       Float?
+  p3_height       Float?
+  p5_height       Float?
+  p10_height      Float?
+  p15_height      Float?
+  p25_height      Float?
+  p50_height      Float?
+  p75_height      Float?
+  p85_height      Float?
+  p90_height      Float?
+  p95_height      Float?
+  p97_height      Float?
+  p99_height      Float?
+  p999_height     Float?
+  sd4neg_weight   Float?
+  sd3neg_weight   Float?
+  sd2neg_weight   Float?
+  sd1neg_weight   Float?
+  sd0_weight      Float?
+  sd1_weight      Float?
+  sd2_weight      Float?
+  sd3_weight      Float?
+  sd4_weight      Float?
+  p01_weight      Float?
+  p1_weight       Float?
+  p3_weight       Float?
+  p5_weight       Float?
+  p10_weight      Float?
+  p15_weight      Float?
+  p25_weight      Float?
+  p50_weight      Float?
+  p75_weight      Float?
+  p85_weight      Float?
+  p90_weight      Float?
+  p95_weight      Float?
+  p97_weight      Float?
+  p99_weight      Float?
+  p999_weight     Float?
+  l_weight        Float?
+  m_weight        Float?
+  s_weight        Float?
+
+  @@map("pertumbuhan_laki_laki")
+}
+
+model PertumbuhanPerempuan {
+  id              Int     @id @default(autoincrement())
+  day             Int     @unique
+  l_height        Float?
+  m_height        Float?
+  s_height        Float?
+  sd4neg_height   Float?
+  sd3neg_height   Float?
+  sd2neg_height   Float?
+  sd1neg_height   Float?
+  sd0_height      Float?
+  sd1_height      Float?
+  sd2_height      Float?
+  sd3_height      Float?
+  sd4_height      Float?
+  p01_height      Float?
+  p1_height       Float?
+  p3_height       Float?
+  p5_height       Float?
+  p10_height      Float?
+  p15_height      Float?
+  p25_height      Float?
+  p50_height      Float?
+  p75_height      Float?
+  p85_height      Float?
+  p90_height      Float?
+  p95_height      Float?
+  p97_height      Float?
+  p99_height      Float?
+  p999_height     Float?
+  sd4neg_weight   Float?
+  sd3neg_weight   Float?
+  sd2neg_weight   Float?
+  sd1neg_weight   Float?
+  sd0_weight      Float?
+  sd1_weight      Float?
+  sd2_weight      Float?
+  sd3_weight      Float?
+  sd4_weight      Float?
+  p01_weight      Float?
+  p1_weight       Float?
+  p3_weight       Float?
+  p5_weight       Float?
+  p10_weight      Float?
+  p15_weight      Float?
+  p25_weight      Float?
+  p50_weight      Float?
+  p75_weight      Float?
+  p85_weight      Float?
+  p90_weight      Float?
+  p95_weight      Float?
+  p97_weight      Float?
+  p99_weight      Float?
+  p999_weight     Float?
+  l_weight        Float?
+  m_weight        Float?
+  s_weight        Float?
+
+  @@map("pertumbuhan_perempuan")
+}

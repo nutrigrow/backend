@@ -72,7 +72,7 @@ const findPercentileBracket = (value, whoRow, cols) => {
     const ref = whoRow[cols[i]];
     if (ref !== null && ref !== undefined && value >= ref) {
       if (i === cols.length - 1) return `> ${PERCENTILE_LABELS[i]}`;
-      return `${PERCENTILE_LABELS[i]} - ${PERCENTILE_LABELS[i + 1]}`;
+      return `${PERCENTILE_LABELS[i]}`;
     }
   }
   return `< ${PERCENTILE_LABELS[0]}`;

@@ -101,7 +101,8 @@ model User {
 model Balita {
   id           Int          @id @default(autoincrement())
   userId       Int          @map("user_id")
-  namaAnak     String       @map("nama_anak")
+  namaDepan    String       @map("nama_depan")
+  namaAkhir    String?      @map("nama_akhir")
   tanggalLahir DateTime     @map("tanggal_lahir") @db.Date
   jenisKelamin JenisKelamin @map("jenis_kelamin")
   createdAt    DateTime     @default(now()) @map("created_at")
@@ -441,4 +442,13 @@ model PertumbuhanPerempuan {
   s_weight        Float?
 
   @@map("pertumbuhan_perempuan")
+}
+
+model bmi {
+  id              Int     @id @default(autoincrement())
+  day             Int     @unique
+  bmi_girl        Float?
+  bmi_boy         Float?
+
+  @@map("bmi")
 }

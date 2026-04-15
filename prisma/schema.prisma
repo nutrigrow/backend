@@ -70,6 +70,12 @@ enum MetodePengiriman {
   EXPRESS
 }
 
+enum FaseKesehatan {
+  REMAJA
+  HAMIL
+  MENYUSUI
+}
+
 // ============================================
 // TABLE DEFINITIONS
 // ============================================
@@ -87,7 +93,7 @@ model User {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   balita          Balita[]
-  logKesehatanIbu LogKesehatanIbu[]
+  logKesehatan LogKesehatan[]
   transaksi       Transaksi[]
   konsultasi      Konsultasi[]     @relation("PasienKonsultasi")
   refreshTokens    RefreshToken[]
@@ -136,20 +142,37 @@ model RekamPertumbuhan {
   @@map("rekam_pertumbuhan")
 }
 
-model LogKesehatanIbu {
-  id              Int       @id @default(autoincrement())
-  userId          Int       @map("user_id")
-  tanggalCatat    DateTime  @map("tanggal_catat") @db.Date
-  asupanZatBesiMg Float     @map("asupan_zat_besi_mg")
-  jadwalKontrol   DateTime? @map("jadwal_kontrol") @db.Date
-  catatan         String?
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+model LogKesehatan {
+  id                 Int           @id @default(autoincrement())
+  userId             Int           @map("user_id")
+  tanggalCatat       DateTime      @map("tanggal_catat") @db.Date
+  day                String
+  fase               FaseKesehatan 
+  
+  // -- Kolom Umum (Untuk Semua Fase) --
+  jumlahGelasAir     Int           @map("jumlah_gelas_air")
+  durasiTidur        Float         @map("durasi_tidur")
+  minumSuplemen      Boolean       @default(false) @map("minum_suplemen")
+  mood               Int
+  
+  // -- Kolom Spesifik Remaja (Teen) --
+  sedangHaid         Boolean?      @map("sedang_haid")
+  
+  // -- Kolom Spesifik Ibu Hamil (Pregnant) --
+  beratBadanKg       Float?        @map("berat_badan_kg")
+  
+  // -- Kolom Spesifik Ibu Menyusui (Breastfeeding) --
+  frekuensiMenyusui  Int?          @map("frekuensi_menyusui")
+
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, tanggalCatat]) 
   @@index([userId])
-  @@map("log_kesehatan_ibu")
+  @@index([tanggalCatat])
+  @@map("log_kesehatan")
 }
 
 model ProdukNutrishop {

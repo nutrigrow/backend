@@ -1,19 +1,20 @@
-const prisma = require('../config/database');
+const prisma = require("../config/database");
+const ApiError = require("../utils/ApiError");
 
 // ============================================
 // CONSTANTS & MAPPINGS
 // ============================================
 
 const PROFILE_TYPE_MAP = {
-  teen: 'REMAJA',
-  pregnant: 'HAMIL',
-  breastfeeding: 'MENYUSUI',
+  teen: "REMAJA",
+  pregnant: "HAMIL",
+  breastfeeding: "MENYUSUI",
 };
 
 const FASE_TO_PROFILE_TYPE_MAP = {
-  REMAJA: 'teen',
-  HAMIL: 'pregnant',
-  MENYUSUI: 'breastfeeding',
+  REMAJA: "teen",
+  HAMIL: "pregnant",
+  MENYUSUI: "breastfeeding",
 };
 
 const HYDRATION_TARGETS = {
@@ -23,13 +24,13 @@ const HYDRATION_TARGETS = {
 };
 
 const DAY_NAMES = [
-  'Sunday',
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
 ];
 
 // ============================================
@@ -40,7 +41,7 @@ const DAY_NAMES = [
  * Parse a YYYY-MM-DD string and return a Date at midnight UTC.
  */
 const parseDateUTC = (dateStr) => {
-  const [year, month, day] = dateStr.split('-').map(Number);
+  const [year, month, day] = dateStr.split("-").map(Number);
   return new Date(Date.UTC(year, month - 1, day));
 };
 
@@ -49,7 +50,9 @@ const parseDateUTC = (dateStr) => {
  */
 const todayUTC = () => {
   const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
 };
 
 /**
@@ -61,9 +64,10 @@ const formatLog = (log) => {
   const formatted = {
     id: log.id,
     user_id: log.userId,
-    date: log.tanggalCatat instanceof Date
-      ? log.tanggalCatat.toISOString().slice(0, 10)
-      : log.tanggalCatat,
+    date:
+      log.tanggalCatat instanceof Date
+        ? log.tanggalCatat.toISOString().slice(0, 10)
+        : log.tanggalCatat,
     day: log.day,
     profile_type: FASE_TO_PROFILE_TYPE_MAP[log.fase] ?? log.fase,
     water_glasses: log.jumlahGelasAir,
@@ -106,9 +110,11 @@ const mapBodyToPrisma = (body) => {
   };
 
   // Conditional fields
-  if (body.is_menstruating !== undefined) data.sedangHaid = body.is_menstruating;
+  if (body.is_menstruating !== undefined)
+    data.sedangHaid = body.is_menstruating;
   if (body.weight_kg !== undefined) data.beratBadanKg = body.weight_kg;
-  if (body.breastfeeding_count !== undefined) data.frekuensiMenyusui = body.breastfeeding_count;
+  if (body.breastfeeding_count !== undefined)
+    data.frekuensiMenyusui = body.breastfeeding_count;
 
   return { data, dateUTC };
 };
@@ -122,7 +128,7 @@ const getLatestTwoGrowthRecords = async (userId) => {
     where: {
       balita: { userId },
     },
-    orderBy: { tanggalCatat: 'desc' },
+    orderBy: { tanggalCatat: "desc" },
     take: 2,
     select: {
       tanggalCatat: true,
@@ -175,6 +181,24 @@ const buildBabyGrowthInsight = (records) => {
 const createOrUpdateLog = async (userId, body) => {
   const { data, dateUTC } = mapBodyToPrisma(body);
 
+  // Cek apakah sudah ada log di tanggal ini dengan fase berbeda
+  const existing = await prisma.logKesehatan.findUnique({
+    where: {
+      userId_tanggalCatat: {
+        userId,
+        tanggalCatat: dateUTC,
+      },
+    },
+    select: { fase: true },
+  });
+
+  if (existing && existing.fase !== data.fase) {
+    const existingProfileType = FASE_TO_PROFILE_TYPE_MAP[existing.fase];
+    throw ApiError.conflict(
+      `Log tanggal ini sudah diisi dengan profile_type "${existingProfileType}". Tidak bisa diubah ke profile_type yang berbeda dalam satu hari.`,
+    );
+  }
+
   const log = await prisma.logKesehatan.upsert({
     where: {
       userId_tanggalCatat: {
@@ -217,7 +241,7 @@ const getTodayLog = async (userId) => {
 const getAllLogs = async (userId) => {
   const logs = await prisma.logKesehatan.findMany({
     where: { userId },
-    orderBy: { tanggalCatat: 'desc' },
+    orderBy: { tanggalCatat: "desc" },
   });
 
   return logs.map(formatLog);
@@ -255,10 +279,7 @@ const getInsight = async (userId) => {
     Math.round((log.jumlahGelasAir / hydrationTarget) * 100),
     100,
   );
-  const sleepPercent = Math.min(
-    Math.round((log.durasiTidur / 8) * 100),
-    100,
-  );
+  const sleepPercent = Math.min(Math.round((log.durasiTidur / 8) * 100), 100);
 
   const insight = {
     has_log_today: true,
@@ -309,7 +330,7 @@ const getNotifications = async (userId) => {
     prisma.konsultasi.findFirst({
       where: {
         userId,
-        status: { in: ['BOOKED', 'CONFIRMED'] },
+        status: { in: ["BOOKED", "CONFIRMED"] },
         jadwalSesi: {
           gte: tomorrow,
           lt: dayAfterTomorrow,
@@ -335,52 +356,52 @@ const getNotifications = async (userId) => {
 
     if (!baseComplete) return false;
 
-    if (log.fase === 'REMAJA' && log.sedangHaid === null) return false;
-    if (log.fase === 'HAMIL' && log.beratBadanKg === null) return false;
-    if (log.fase === 'MENYUSUI' && log.frekuensiMenyusui === null) return false;
+    if (log.fase === "REMAJA" && log.sedangHaid === null) return false;
+    if (log.fase === "HAMIL" && log.beratBadanKg === null) return false;
+    if (log.fase === "MENYUSUI" && log.frekuensiMenyusui === null) return false;
 
     return true;
   })();
 
   if (!isLogComplete) {
     notifications.push({
-      type: 'daily_check',
-      message: 'Data log hari ini belum lengkap. Yuk, catat kesehatanmu!',
+      type: "daily_check",
+      message: "Data log hari ini belum lengkap. Yuk, catat kesehatanmu!",
     });
   }
 
   // ── 2. Supplement reminders (only when log exists) ────────────────────────
   if (log && log.minumSuplemen === false) {
-    if (log.fase === 'REMAJA') {
+    if (log.fase === "REMAJA") {
       notifications.push({
-        type: 'supplement_teen',
+        type: "supplement_teen",
         message:
-          'Hari ini belum mencatat konsumsi Tablet Tambah Darah (TTD). Yuk, rutin minum agar tetap fit!',
+          "Hari ini belum mencatat konsumsi Tablet Tambah Darah (TTD). Yuk, rutin minum agar tetap fit!",
       });
-    } else if (log.fase === 'HAMIL' || log.fase === 'MENYUSUI') {
+    } else if (log.fase === "HAMIL" || log.fase === "MENYUSUI") {
       notifications.push({
-        type: 'supplement_mom',
+        type: "supplement_mom",
         message:
-          'Bunda, jangan lupa suplemen nutrisi hari ini untuk kesehatan Bunda dan si Kecil.',
+          "Bunda, jangan lupa suplemen nutrisi hari ini untuk kesehatan Bunda dan si Kecil.",
       });
     }
   }
 
   // ── 3. Menstruation reminder ───────────────────────────────────────────────
-  if (log && log.fase === 'REMAJA' && log.sedangHaid === true) {
+  if (log && log.fase === "REMAJA" && log.sedangHaid === true) {
     notifications.push({
-      type: 'menstruation',
+      type: "menstruation",
       message:
-        'Sedang masa haid? Pastikan hidrasi dan asupan zat besi terjaga hari ini ya.',
+        "Sedang masa haid? Pastikan hidrasi dan asupan zat besi terjaga hari ini ya.",
     });
   }
 
   // ── 4. ANC / consultation reminder ────────────────────────────────────────
   if (nextConsultation) {
     notifications.push({
-      type: 'anc_reminder',
+      type: "anc_reminder",
       message:
-        'Persiapan Kontrol: Besok adalah jadwal kunjungan ke dokter/bidan. Pastikan Bunda sudah siap!',
+        "Persiapan Kontrol: Besok adalah jadwal kunjungan ke dokter/bidan. Pastikan Bunda sudah siap!",
     });
   }
 
@@ -393,7 +414,7 @@ const getNotifications = async (userId) => {
       balitaIds.map((balitaId) =>
         prisma.rekamPertumbuhan.findFirst({
           where: { balitaId },
-          orderBy: { tanggalCatat: 'desc' },
+          orderBy: { tanggalCatat: "desc" },
           select: { tanggalCatat: true },
         }),
       ),
@@ -401,15 +422,14 @@ const getNotifications = async (userId) => {
 
     // Trigger the notification if at least one balita is stale (or has no record)
     const hasStaleGrowth = latestRecords.some(
-      (record) =>
-        record === null || record.tanggalCatat < twentyEightDaysAgo,
+      (record) => record === null || record.tanggalCatat < twentyEightDaysAgo,
     );
 
     if (hasStaleGrowth) {
       notifications.push({
-        type: 'baby_growth',
+        type: "baby_growth",
         message:
-          'Sudah hampir sebulan! Yuk, ukur pertumbuhan si Kecil hari ini agar terpantau optimal.',
+          "Sudah hampir sebulan! Yuk, ukur pertumbuhan si Kecil hari ini agar terpantau optimal.",
       });
     }
   }

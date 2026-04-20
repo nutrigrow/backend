@@ -73,6 +73,30 @@ const addToCart = async (req, res, next) => {
     }
 };
 
+const updateCartItemQuantity = async (req, res, next) => {
+    try {
+        const cartItem = await nutrishopService.updateCartItemQuantity(req.user.id, req.params.id, req.body);
+        res.status(200).json({
+            status: 'success',
+            data: { cartItem }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const deleteCartItem = async (req, res, next) => {
+    try {
+        const deleted = await nutrishopService.deleteCartItem(req.user.id, req.params.id);
+        res.status(200).json({
+            status: 'success',
+            data: { deleted }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 // ============================================
 // ADDRESS CONTROLLERS
 // ============================================
@@ -127,14 +151,87 @@ const checkoutDirect = async (req, res, next) => {
     }
 };
 
+// ============================================
+// ORDER CONTROLLERS
+// ============================================
+const getOrders = async (req, res, next) => {
+    try {
+        const orders = await nutrishopService.getOrders(req.user.id, req.query);
+        res.status(200).json({
+            status: 'success',
+            data: { orders }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getOrderById = async (req, res, next) => {
+    try {
+        const order = await nutrishopService.getOrderById(req.user.id, req.params.id);
+        res.status(200).json({
+            status: 'success',
+            data: { order }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const syncOrderPayment = async (req, res, next) => {
+    try {
+        const order = await nutrishopService.syncOrderPaymentStatus(req.user.id, req.params.id);
+        res.status(200).json({
+            status: 'success',
+            data: { order }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const payOrder = async (req, res, next) => {
+    try {
+        const order = await nutrishopService.createPaymentForOrder(req.user.id, req.params.id);
+        res.status(200).json({
+            status: 'success',
+            data: { order }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// ============================================
+// MIDTRANS WEBHOOK CONTROLLER
+// ============================================
+const handleMidtransWebhook = async (req, res, next) => {
+    try {
+        const order = await nutrishopService.handleMidtransWebhook(req.body);
+        res.status(200).json({
+            status: 'success',
+            data: { order }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     getProducts,
     getProductById,
     addProduct,
     getCart,
     addToCart,
+    updateCartItemQuantity,
+    deleteCartItem,
     addAddress,
     getAddresses,
+    getOrders,
+    getOrderById,
+    syncOrderPayment,
+    payOrder,
+    handleMidtransWebhook,
     checkoutCart,
     checkoutDirect
 };

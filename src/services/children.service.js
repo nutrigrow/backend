@@ -216,13 +216,12 @@ const createGrowthRecord = async (balitaId, userId, body) => {
       jenisKelamin: balita.jenisKelamin,
       tinggiBadan: tb,
       beratBadan: bb,
-      tinggiBadanIbu: null, // Always null for now (uses fallback in python)
+      tinggiBadanIbu: null,
     });
     risikoStuntingMl = prediction.prediction_label;
-    mlConfidence = prediction.confidence * 100; // Convert to percentage
+    mlConfidence = prediction.confidence * 100;
   } catch (error) {
     console.error("AI Prediction failed:", error);
-    // Continue saving record even if AI fails, but fields will be null
   }
 
   return prisma.rekamPertumbuhan.create({
@@ -234,6 +233,67 @@ const createGrowthRecord = async (balitaId, userId, body) => {
       risikoStuntingMl,
       mlConfidence,
     },
+  });
+};
+
+const updateGrowthRecord = async (recordId, userId, body) => {
+  const record = await prisma.rekamPertumbuhan.findUnique({
+    where: { id: recordId },
+    include: { balita: true },
+  });
+
+  if (!record || record.balita.userId !== userId) {
+    throw ApiError.notFound("Data pertumbuhan tidak ditemukan");
+  }
+
+  const { tinggiBadan, beratBadan, tanggalCatat } = body;
+  const tb = parseFloat(tinggiBadan);
+  const bb = parseFloat(beratBadan);
+  const date = new Date(tanggalCatat);
+
+  // Recalculate AI Prediction for the updated data
+  let risikoStuntingMl = record.risikoStuntingMl;
+  let mlConfidence = record.mlConfidence;
+
+  try {
+    const ageDays = calcAgeDays(record.balita.tanggalLahir, date);
+    const prediction = await aiService.predictStunting({
+      umurBulan: ageDays / 30.44,
+      jenisKelamin: record.balita.jenisKelamin,
+      tinggiBadan: tb,
+      beratBadan: bb,
+      tinggiBadanIbu: null,
+    });
+    risikoStuntingMl = prediction.prediction_label;
+    mlConfidence = prediction.confidence * 100;
+  } catch (error) {
+    console.error("AI Prediction failed during update:", error);
+  }
+
+  return prisma.rekamPertumbuhan.update({
+    where: { id: recordId },
+    data: {
+      tinggiBadan: tb,
+      beratBadan: bb,
+      tanggalCatat: date,
+      risikoStuntingMl,
+      mlConfidence,
+    },
+  });
+};
+
+const deleteGrowthRecord = async (recordId, userId) => {
+  const record = await prisma.rekamPertumbuhan.findUnique({
+    where: { id: recordId },
+    include: { balita: true },
+  });
+
+  if (!record || record.balita.userId !== userId) {
+    throw ApiError.notFound("Data pertumbuhan tidak ditemukan");
+  }
+
+  return prisma.rekamPertumbuhan.delete({
+    where: { id: recordId },
   });
 };
 
@@ -274,7 +334,7 @@ const getBmiChart = async (balitaId, userId) => {
   const histories = await prisma.rekamPertumbuhan.findMany({
     where: { balitaId },
     orderBy: { tanggalCatat: "asc" },
-    select: { tinggiBadan: true, beratBadan: true, tanggalCatat: true },
+    select: { id: true, tinggiBadan: true, beratBadan: true, tanggalCatat: true },
   });
 
   if (!histories.length) return [];
@@ -325,6 +385,7 @@ const getPercentile = async (balitaId, userId) => {
     where: { balitaId },
     orderBy: { tanggalCatat: "desc" },
     select: {
+      id: true,
       tinggiBadan: true,
       beratBadan: true,
       tanggalCatat: true,
@@ -364,6 +425,7 @@ const getPercentile = async (balitaId, userId) => {
       );
 
       return {
+        id: rec.id,
         tanggalCatat: rec.tanggalCatat,
         usiaHari,
         tinggiBadan: rec.tinggiBadan,
@@ -386,6 +448,8 @@ module.exports = {
   updateChild,
   getChildName,
   createGrowthRecord,
+  updateGrowthRecord,
+  deleteGrowthRecord,
   getLatestGrowth,
   getBmiChart,
   getPercentile,

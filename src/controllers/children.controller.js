@@ -103,6 +103,24 @@ const getPercentile = catchAsync(async (req, res) => {
   success(res, { message: 'Berhasil mengambil data persentil pertumbuhan', data });
 });
 
+/**
+ * @desc  Update a growth record
+ * @route PUT /api/children/growth/:recordId
+ */
+const updateGrowthRecord = catchAsync(async (req, res) => {
+  const data = await childrenService.updateGrowthRecord(parseInt(req.params.recordId), req.user.id, req.body);
+  success(res, { message: 'Data pertumbuhan berhasil diperbarui', data });
+});
+
+/**
+ * @desc  Delete a growth record
+ * @route DELETE /api/children/growth/:recordId
+ */
+const deleteGrowthRecord = catchAsync(async (req, res) => {
+  await childrenService.deleteGrowthRecord(parseInt(req.params.recordId), req.user.id);
+  success(res, { message: 'Data pertumbuhan berhasil dihapus' });
+});
+
 module.exports = {
   getAllChildren,
   createChild,
@@ -110,6 +128,8 @@ module.exports = {
   updateChild,
   getChildName,
   createGrowthRecord,
+  updateGrowthRecord,
+  deleteGrowthRecord,
   getLatestGrowth,
   getBmiChart,
   getPercentile,

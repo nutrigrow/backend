@@ -17,7 +17,7 @@ const TOKEN_TYPES = Object.freeze({
 
 // Token expiry durations
 const TOKEN_EXPIRY = Object.freeze({
-  ACCESS: "15m", // 15 minutes
+  ACCESS: "30m", // 30 minutes
   REFRESH: "7d", // 7 days
   RESET_PASSWORD: "1h", // 1 hour
   EMAIL_VERIFICATION: "24h", // 24 hours

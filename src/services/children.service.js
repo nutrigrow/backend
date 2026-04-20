@@ -206,6 +206,12 @@ const createGrowthRecord = async (balitaId, userId, body) => {
   const ageDays = calcAgeDays(balita.tanggalLahir, date);
   const ageMonths = ageDays / 30.44;
 
+  // 2. Fetch User Profile for Mother's Height
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { tinggiBadanIbu: true }
+  });
+
   // 2. Run AI Prediction (Async but we want to store it)
   let risikoStuntingMl = null;
   let mlConfidence = null;
@@ -216,7 +222,7 @@ const createGrowthRecord = async (balitaId, userId, body) => {
       jenisKelamin: balita.jenisKelamin,
       tinggiBadan: tb,
       beratBadan: bb,
-      tinggiBadanIbu: null,
+      tinggiBadanIbu: user?.tinggiBadanIbu,
     });
     risikoStuntingMl = prediction.prediction_label;
     mlConfidence = prediction.confidence * 100;
@@ -239,7 +245,11 @@ const createGrowthRecord = async (balitaId, userId, body) => {
 const updateGrowthRecord = async (recordId, userId, body) => {
   const record = await prisma.rekamPertumbuhan.findUnique({
     where: { id: recordId },
-    include: { balita: true },
+    include: { 
+      balita: {
+        include: { user: { select: { tinggiBadanIbu: true } } }
+      } 
+    },
   });
 
   if (!record || record.balita.userId !== userId) {
@@ -262,7 +272,7 @@ const updateGrowthRecord = async (recordId, userId, body) => {
       jenisKelamin: record.balita.jenisKelamin,
       tinggiBadan: tb,
       beratBadan: bb,
-      tinggiBadanIbu: null,
+      tinggiBadanIbu: record.balita.user?.tinggiBadanIbu,
     });
     risikoStuntingMl = prediction.prediction_label;
     mlConfidence = prediction.confidence * 100;

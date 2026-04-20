@@ -166,6 +166,20 @@ const getMe = catchAsync(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Update current authenticated user profile
+ * @route   PATCH /api/auth/me
+ * @access  Private
+ */
+const updateMe = catchAsync(async (req, res) => {
+  const user = await authService.updateMe(req.user.id, req.body);
+
+  success(res, {
+    message: "Profil berhasil diperbarui",
+    data: { user },
+  });
+});
+
 module.exports = {
   register,
   login,
@@ -177,4 +191,5 @@ module.exports = {
   resetPassword,
   changePassword,
   getMe,
+  updateMe,
 };

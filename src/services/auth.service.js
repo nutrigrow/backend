@@ -426,6 +426,7 @@ const getMe = async (userId) => {
       avatarUrl: true,
       emailVerifiedAt: true,
       googleId: true,
+      tinggiBadanIbu: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -443,6 +444,43 @@ const getMe = async (userId) => {
   };
 };
 
+/**
+ * Update the profile of the currently authenticated user.
+ * @param {number} userId - The user ID
+ * @param {Object} updateData - Data to update (nama, tinggiBadanIbu)
+ */
+const updateMe = async (userId, updateData) => {
+  // Filter allowed fields
+  const allowedUpdates = ["nama", "tinggiBadanIbu"];
+  const finalData = {};
+
+  Object.keys(updateData).forEach((key) => {
+    if (allowedUpdates.includes(key)) {
+      finalData[key] = updateData[key];
+    }
+  });
+
+  if (Object.keys(finalData).length === 0) {
+    throw ApiError.badRequest("Tidak ada data valid yang dikirim untuk diupdate");
+  }
+
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: finalData,
+    select: {
+      id: true,
+      nama: true,
+      email: true,
+      role: true,
+      avatarUrl: true,
+      tinggiBadanIbu: true,
+      updatedAt: true,
+    },
+  });
+
+  return updatedUser;
+};
+
 module.exports = {
   register,
   login,
@@ -455,5 +493,6 @@ module.exports = {
   resetPassword,
   changePassword,
   getMe,
+  updateMe,
   generateAuthTokens,
 };

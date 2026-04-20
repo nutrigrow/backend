@@ -15,6 +15,7 @@ const {
   forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,
+  updateProfileSchema,
 } = require("../validators/auth.validator");
 
 // ============================================
@@ -88,6 +89,13 @@ router.post(
   authenticate,
   validate(changePasswordSchema),
   authController.changePassword,
+);
+
+router.patch(
+  "/me",
+  authenticate,
+  validate(updateProfileSchema),
+  authController.updateMe,
 );
 
 module.exports = router;

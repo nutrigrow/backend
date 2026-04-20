@@ -108,6 +108,22 @@ const changePasswordSchema = {
   }),
 };
 
+const updateProfileSchema = {
+  body: z.object({
+    nama: z
+      .string()
+      .min(2, "Nama minimal 2 karakter")
+      .max(100, "Nama maksimal 100 karakter")
+      .trim()
+      .optional(),
+    tinggiBadanIbu: z
+      .number()
+      .min(100, "Tinggi badan tidak wajar (terlalu rendah)")
+      .max(250, "Tinggi badan tidak wajar (terlalu tinggi)")
+      .optional(),
+  }),
+};
+
 module.exports = {
   registerSchema,
   loginSchema,
@@ -117,4 +133,5 @@ module.exports = {
   forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,
+  updateProfileSchema,
 };

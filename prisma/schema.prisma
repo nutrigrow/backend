@@ -6,9 +6,380 @@ datasource db {
   provider = "postgresql"
 }
 
-// ============================================
-// ENUM DEFINITIONS
-// ============================================
+model User {
+  id               Int                @id @default(autoincrement())
+  nama             String
+  email            String             @unique
+  passwordHash     String?            @map("password_hash")
+  googleId         String?            @unique @map("google_id")
+  avatarUrl        String?            @map("avatar_url")
+  role             Role               @default(USER)
+  emailVerifiedAt  DateTime?          @map("email_verified_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  tinggiBadanIbu   Float?             @map("tinggi_badan")
+  alamatPengiriman AlamatPengiriman[]
+  balita           Balita[]
+  keranjang        Keranjang[]
+  konsultasi       Konsultasi[]       @relation("PasienKonsultasi")
+  logKesehatan     LogKesehatan[]
+  profilAhliGizi   ProfilAhliGizi?
+  refreshTokens    RefreshToken[]
+  transaksi        Transaksi[]
+
+  @@map("users")
+}
+
+model Balita {
+  id               Int                @id @default(autoincrement())
+  userId           Int                @map("user_id")
+  tanggalLahir     DateTime           @map("tanggal_lahir") @db.Date
+  jenisKelamin     JenisKelamin       @map("jenis_kelamin")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  namaAkhir        String?            @map("nama_akhir")
+  namaDepan        String             @map("nama_depan")
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rekamPertumbuhan RekamPertumbuhan[]
+
+  @@index([userId])
+  @@map("balita")
+}
+
+model RekamPertumbuhan {
+  id               Int         @id @default(autoincrement())
+  balitaId         Int         @map("balita_id")
+  tanggalCatat     DateTime    @map("tanggal_catat") @db.Date
+  beratBadan       Float       @map("berat_badan")
+  tinggiBadan      Float       @map("tinggi_badan")
+  zScoreBbU        Float?      @map("z_score_bb_u")
+  zScoreTbU        Float?      @map("z_score_tb_u")
+  zScoreBbTb       Float?      @map("z_score_bb_tb")
+  statusGizi       StatusGizi? @map("status_gizi")
+  risikoStuntingMl String?     @map("risiko_stunting_ml")
+  mlConfidence     Float?      @map("ml_confidence")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  balita           Balita      @relation(fields: [balitaId], references: [id], onDelete: Cascade)
+
+  @@index([balitaId])
+  @@index([tanggalCatat])
+  @@map("rekam_pertumbuhan")
+}
+
+model LogKesehatan {
+  id                Int           @id @default(autoincrement())
+  userId            Int           @map("user_id")
+  tanggalCatat      DateTime      @map("tanggal_catat") @db.Date
+  day               String
+  fase              FaseKesehatan
+  jumlahGelasAir    Int           @map("jumlah_gelas_air")
+  durasiTidur       Float         @map("durasi_tidur")
+  minumSuplemen     Boolean       @default(false) @map("minum_suplemen")
+  mood              Int
+  sedangHaid        Boolean?      @map("sedang_haid")
+  beratBadanKg      Float?        @map("berat_badan_kg")
+  frekuensiMenyusui Int?          @map("frekuensi_menyusui")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tanggalCatat])
+  @@index([userId])
+  @@index([tanggalCatat])
+  @@map("log_kesehatan")
+}
+
+model ProdukNutrishop {
+  id              Int               @id @default(autoincrement())
+  namaProduk      String            @map("nama_produk")
+  deskripsi       String?
+  kategori        KategoriProduk
+  gambarUrl       String?           @map("gambar_url")
+  harga           Int
+  stok            Int               @default(0)
+  isActive        Boolean           @default(true) @map("is_active")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  detailTransaksi DetailTransaksi[]
+  keranjang       Keranjang[]
+
+  @@map("produk_nutrishop")
+}
+
+model Transaksi {
+  id                    Int               @id @default(autoincrement())
+  userId                Int               @map("user_id")
+  midtransOrderId       String            @unique @map("midtrans_order_id")
+  midtransTransactionId String?           @map("midtrans_transaction_id")
+  jenisTransaksi        JenisTransaksi    @map("jenis_transaksi")
+  totalHarga            Int               @map("total_harga")
+  statusBayar           StatusBayar       @default(PENDING) @map("status_bayar")
+  snapToken             String?           @map("snap_token")
+  paymentType           String?           @map("payment_type")
+  tanggalTransaksi      DateTime          @default(now()) @map("tanggal_transaksi")
+  paidAt                DateTime?         @map("paid_at")
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime          @updatedAt @map("updated_at")
+  alamatId              Int?              @map("alamat_id")
+  biayaPengiriman       Int               @default(0) @map("biaya_pengiriman")
+  metodePengiriman      MetodePengiriman? @map("metode_pengiriman")
+  detailTransaksi       DetailTransaksi[]
+  konsultasi            Konsultasi?
+  alamat                AlamatPengiriman? @relation(fields: [alamatId], references: [id])
+  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([statusBayar])
+  @@map("transaksi")
+}
+
+model DetailTransaksi {
+  id          Int             @id @default(autoincrement())
+  transaksiId Int             @map("transaksi_id")
+  produkId    Int             @map("produk_id")
+  kuantitas   Int
+  hargaSatuan Int             @map("harga_satuan")
+  subtotal    Int
+  createdAt   DateTime        @default(now()) @map("created_at")
+  produk      ProdukNutrishop @relation(fields: [produkId], references: [id])
+  transaksi   Transaksi       @relation(fields: [transaksiId], references: [id], onDelete: Cascade)
+
+  @@index([transaksiId])
+  @@map("detail_transaksi")
+}
+
+model ProfilAhliGizi {
+  id              Int          @id @default(autoincrement())
+  userId          Int          @unique @map("user_id")
+  sertifikasi     String
+  spesialisasi    String?
+  biayaKonsultasi Int          @map("biaya_konsultasi")
+  fotoUrl         String?      @map("foto_url")
+  bio             String?
+  isAvailable     Boolean      @default(true) @map("is_available")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  konsultasi      Konsultasi[]
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profil_ahli_gizi")
+}
+
+model Konsultasi {
+  id                Int              @id @default(autoincrement())
+  userId            Int              @map("user_id")
+  ahliGiziId        Int              @map("ahli_gizi_id")
+  transaksiId       Int?             @unique @map("transaksi_id")
+  jadwalSesi        DateTime         @map("jadwal_sesi")
+  durasiMenit       Int              @default(30) @map("durasi_menit")
+  status            StatusKonsultasi @default(BOOKED)
+  catatanKonsultasi String?          @map("catatan_konsultasi")
+  linkMeeting       String?          @map("link_meeting")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  ahliGizi          ProfilAhliGizi   @relation(fields: [ahliGiziId], references: [id])
+  transaksi         Transaksi?       @relation(fields: [transaksiId], references: [id])
+  user              User             @relation("PasienKonsultasi", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([ahliGiziId])
+  @@index([jadwalSesi])
+  @@map("konsultasi")
+}
+
+model ArtikelEdukasi {
+  id          Int             @id @default(autoincrement())
+  judul       String
+  konten      String
+  kategori    KategoriArtikel
+  gambarUrl   String?         @map("gambar_url")
+  penulis     String?
+  isPublished Boolean         @default(false) @map("is_published")
+  publishedAt DateTime?       @map("published_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  @@map("artikel_edukasi")
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  tokenHash String   @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  isRevoked Boolean  @default(false) @map("is_revoked")
+  userAgent String?  @map("user_agent")
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
+}
+
+model Keranjang {
+  id        Int             @id @default(autoincrement())
+  userId    Int             @map("user_id")
+  produkId  Int             @map("produk_id")
+  kuantitas Int
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+  produk    ProdukNutrishop @relation(fields: [produkId], references: [id], onDelete: Cascade)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("keranjang")
+}
+
+model AlamatPengiriman {
+  id            Int         @id @default(autoincrement())
+  userId        Int         @map("user_id")
+  namaPenerima  String      @map("nama_penerima")
+  noTelepon     String      @map("no_telepon")
+  alamatLengkap String      @map("alamat_lengkap")
+  kelurahan     String
+  kecamatan     String
+  kota          String
+  kodePos       String      @map("kode_pos")
+  isUtama       Boolean     @default(false) @map("is_utama")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaksi     Transaksi[]
+
+  @@map("alamat_pengiriman")
+}
+
+model PertumbuhanLakiLaki {
+  id            Int    @id @default(autoincrement())
+  day           Int    @unique
+  l_height      Float?
+  m_height      Float?
+  s_height      Float?
+  sd4neg_height Float?
+  sd3neg_height Float?
+  sd2neg_height Float?
+  sd1neg_height Float?
+  sd0_height    Float?
+  sd1_height    Float?
+  sd2_height    Float?
+  sd3_height    Float?
+  sd4_height    Float?
+  p01_height    Float?
+  p1_height     Float?
+  p3_height     Float?
+  p5_height     Float?
+  p10_height    Float?
+  p15_height    Float?
+  p25_height    Float?
+  p50_height    Float?
+  p75_height    Float?
+  p85_height    Float?
+  p90_height    Float?
+  p95_height    Float?
+  p97_height    Float?
+  p99_height    Float?
+  p999_height   Float?
+  sd4neg_weight Float?
+  sd3neg_weight Float?
+  sd2neg_weight Float?
+  sd1neg_weight Float?
+  sd0_weight    Float?
+  sd1_weight    Float?
+  sd2_weight    Float?
+  sd3_weight    Float?
+  sd4_weight    Float?
+  p01_weight    Float?
+  p1_weight     Float?
+  p3_weight     Float?
+  p5_weight     Float?
+  p10_weight    Float?
+  p15_weight    Float?
+  p25_weight    Float?
+  p50_weight    Float?
+  p75_weight    Float?
+  p85_weight    Float?
+  p90_weight    Float?
+  p95_weight    Float?
+  p97_weight    Float?
+  p99_weight    Float?
+  p999_weight   Float?
+  l_weight      Float?
+  m_weight      Float?
+  s_weight      Float?
+
+  @@map("pertumbuhan_laki_laki")
+}
+
+model PertumbuhanPerempuan {
+  id            Int    @id @default(autoincrement())
+  day           Int    @unique
+  l_height      Float?
+  m_height      Float?
+  s_height      Float?
+  sd4neg_height Float?
+  sd3neg_height Float?
+  sd2neg_height Float?
+  sd1neg_height Float?
+  sd0_height    Float?
+  sd1_height    Float?
+  sd2_height    Float?
+  sd3_height    Float?
+  sd4_height    Float?
+  p01_height    Float?
+  p1_height     Float?
+  p3_height     Float?
+  p5_height     Float?
+  p10_height    Float?
+  p15_height    Float?
+  p25_height    Float?
+  p50_height    Float?
+  p75_height    Float?
+  p85_height    Float?
+  p90_height    Float?
+  p95_height    Float?
+  p97_height    Float?
+  p99_height    Float?
+  p999_height   Float?
+  sd4neg_weight Float?
+  sd3neg_weight Float?
+  sd2neg_weight Float?
+  sd1neg_weight Float?
+  sd0_weight    Float?
+  sd1_weight    Float?
+  sd2_weight    Float?
+  sd3_weight    Float?
+  sd4_weight    Float?
+  p01_weight    Float?
+  p1_weight     Float?
+  p3_weight     Float?
+  p5_weight     Float?
+  p10_weight    Float?
+  p15_weight    Float?
+  p25_weight    Float?
+  p50_weight    Float?
+  p75_weight    Float?
+  p85_weight    Float?
+  p90_weight    Float?
+  p95_weight    Float?
+  p97_weight    Float?
+  p99_weight    Float?
+  p999_weight   Float?
+  l_weight      Float?
+  m_weight      Float?
+  s_weight      Float?
+
+  @@map("pertumbuhan_perempuan")
+}
+
+model bmi {
+  id       Int    @id @default(autoincrement())
+  day      Int    @unique
+  bmi_girl Float?
+  bmi_boy  Float?
+
+  @@map("bmi")
+}
 
 enum Role {
   USER
@@ -74,404 +445,4 @@ enum FaseKesehatan {
   REMAJA
   HAMIL
   MENYUSUI
-}
-
-// ============================================
-// TABLE DEFINITIONS
-// ============================================
-
-model User {
-  id              Int       @id @default(autoincrement())
-  nama            String
-  email           String    @unique
-  passwordHash    String?   @map("password_hash")
-  googleId        String?   @unique @map("google_id")
-  avatarUrl       String?   @map("avatar_url")
-  role            Role      @default(USER)
-  emailVerifiedAt DateTime? @map("email_verified_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-
-  balita          Balita[]
-  logKesehatan LogKesehatan[]
-  transaksi       Transaksi[]
-  konsultasi      Konsultasi[]     @relation("PasienKonsultasi")
-  refreshTokens    RefreshToken[]
-  profilAhliGizi   ProfilAhliGizi?
-  keranjang        Keranjang[]
-  alamatPengiriman AlamatPengiriman[]
-
-  @@map("users")
-}
-
-model Balita {
-  id           Int          @id @default(autoincrement())
-  userId       Int          @map("user_id")
-  namaDepan    String       @map("nama_depan")
-  namaAkhir    String?      @map("nama_akhir")
-  tanggalLahir DateTime     @map("tanggal_lahir") @db.Date
-  jenisKelamin JenisKelamin @map("jenis_kelamin")
-  createdAt    DateTime     @default(now()) @map("created_at")
-  updatedAt    DateTime     @updatedAt @map("updated_at")
-
-  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  rekamPertumbuhan RekamPertumbuhan[]
-
-  @@index([userId])
-  @@map("balita")
-}
-
-model RekamPertumbuhan {
-  id               Int         @id @default(autoincrement())
-  balitaId         Int         @map("balita_id")
-  tanggalCatat     DateTime    @map("tanggal_catat") @db.Date
-  beratBadan       Float       @map("berat_badan")
-  tinggiBadan      Float       @map("tinggi_badan")
-  zScoreBbU        Float?      @map("z_score_bb_u")
-  zScoreTbU        Float?      @map("z_score_tb_u")
-  zScoreBbTb       Float?      @map("z_score_bb_tb")
-  statusGizi       StatusGizi? @map("status_gizi")
-  risikoStuntingMl String?     @map("risiko_stunting_ml")
-  mlConfidence     Float?      @map("ml_confidence")
-  createdAt        DateTime    @default(now()) @map("created_at")
-
-  balita Balita @relation(fields: [balitaId], references: [id], onDelete: Cascade)
-
-  @@index([balitaId])
-  @@index([tanggalCatat])
-  @@map("rekam_pertumbuhan")
-}
-
-model LogKesehatan {
-  id                 Int           @id @default(autoincrement())
-  userId             Int           @map("user_id")
-  tanggalCatat       DateTime      @map("tanggal_catat") @db.Date
-  day                String
-  fase               FaseKesehatan 
-  
-  // -- Kolom Umum (Untuk Semua Fase) --
-  jumlahGelasAir     Int           @map("jumlah_gelas_air")
-  durasiTidur        Float         @map("durasi_tidur")
-  minumSuplemen      Boolean       @default(false) @map("minum_suplemen")
-  mood               Int
-  
-  // -- Kolom Spesifik Remaja (Teen) --
-  sedangHaid         Boolean?      @map("sedang_haid")
-  
-  // -- Kolom Spesifik Ibu Hamil (Pregnant) --
-  beratBadanKg       Float?        @map("berat_badan_kg")
-  
-  // -- Kolom Spesifik Ibu Menyusui (Breastfeeding) --
-  frekuensiMenyusui  Int?          @map("frekuensi_menyusui")
-
-  createdAt          DateTime      @default(now()) @map("created_at")
-  updatedAt          DateTime      @updatedAt @map("updated_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, tanggalCatat]) 
-  @@index([userId])
-  @@index([tanggalCatat])
-  @@map("log_kesehatan")
-}
-
-model ProdukNutrishop {
-  id         Int            @id @default(autoincrement())
-  namaProduk String         @map("nama_produk")
-  deskripsi  String?
-  kategori   KategoriProduk
-  gambarUrl  String?        @map("gambar_url")
-  harga      Int
-  stok       Int            @default(0)
-  isActive   Boolean        @default(true) @map("is_active")
-  createdAt  DateTime       @default(now()) @map("created_at")
-  updatedAt  DateTime       @updatedAt @map("updated_at")
-
-  detailTransaksi DetailTransaksi[]
-  keranjang       Keranjang[]
-
-  @@map("produk_nutrishop")
-}
-
-model Transaksi {
-  id                    Int            @id @default(autoincrement())
-  userId                Int            @map("user_id")
-  midtransOrderId       String         @unique @map("midtrans_order_id")
-  midtransTransactionId String?        @map("midtrans_transaction_id")
-  jenisTransaksi        JenisTransaksi @map("jenis_transaksi")
-  totalHarga            Int            @map("total_harga")
-  statusBayar           StatusBayar    @default(PENDING) @map("status_bayar")
-  snapToken             String?        @map("snap_token")
-  paymentType           String?        @map("payment_type")
-  tanggalTransaksi      DateTime       @default(now()) @map("tanggal_transaksi")
-  paidAt                DateTime?         @map("paid_at")
-  createdAt             DateTime          @default(now()) @map("created_at")
-  updatedAt             DateTime          @updatedAt @map("updated_at")
-  
-  alamatId              Int?              @map("alamat_id")
-  metodePengiriman      MetodePengiriman? @map("metode_pengiriman")
-  biayaPengiriman       Int               @default(0) @map("biaya_pengiriman")
-
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  detailTransaksi DetailTransaksi[]
-  konsultasi      Konsultasi?
-  alamat          AlamatPengiriman? @relation(fields: [alamatId], references: [id])
-
-  @@index([userId])
-  @@index([statusBayar])
-  @@map("transaksi")
-}
-
-model DetailTransaksi {
-  id          Int      @id @default(autoincrement())
-  transaksiId Int      @map("transaksi_id")
-  produkId    Int      @map("produk_id")
-  kuantitas   Int
-  hargaSatuan Int      @map("harga_satuan")
-  subtotal    Int
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  transaksi Transaksi       @relation(fields: [transaksiId], references: [id], onDelete: Cascade)
-  produk    ProdukNutrishop @relation(fields: [produkId], references: [id])
-
-  @@index([transaksiId])
-  @@map("detail_transaksi")
-}
-
-model ProfilAhliGizi {
-  id              Int      @id @default(autoincrement())
-  userId          Int      @unique @map("user_id")
-  sertifikasi     String
-  spesialisasi    String?
-  biayaKonsultasi Int      @map("biaya_konsultasi")
-  fotoUrl         String?  @map("foto_url")
-  bio             String?
-  isAvailable     Boolean  @default(true) @map("is_available")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-
-  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  konsultasi Konsultasi[]
-
-  @@map("profil_ahli_gizi")
-}
-
-model Konsultasi {
-  id                Int              @id @default(autoincrement())
-  userId            Int              @map("user_id")
-  ahliGiziId        Int              @map("ahli_gizi_id")
-  transaksiId       Int?             @unique @map("transaksi_id")
-  jadwalSesi        DateTime         @map("jadwal_sesi")
-  durasiMenit       Int              @default(30) @map("durasi_menit")
-  status            StatusKonsultasi @default(BOOKED)
-  catatanKonsultasi String?          @map("catatan_konsultasi")
-  linkMeeting       String?          @map("link_meeting")
-  createdAt         DateTime         @default(now()) @map("created_at")
-  updatedAt         DateTime         @updatedAt @map("updated_at")
-
-  user      User           @relation("PasienKonsultasi", fields: [userId], references: [id], onDelete: Cascade)
-  ahliGizi  ProfilAhliGizi @relation(fields: [ahliGiziId], references: [id])
-  transaksi Transaksi?     @relation(fields: [transaksiId], references: [id])
-
-  @@index([userId])
-  @@index([ahliGiziId])
-  @@index([jadwalSesi])
-  @@map("konsultasi")
-}
-
-model ArtikelEdukasi {
-  id          Int             @id @default(autoincrement())
-  judul       String
-  konten      String
-  kategori    KategoriArtikel
-  gambarUrl   String?         @map("gambar_url")
-  penulis     String?
-  isPublished Boolean         @default(false) @map("is_published")
-  publishedAt DateTime?       @map("published_at")
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
-
-  @@map("artikel_edukasi")
-}
-
-model RefreshToken {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @map("user_id")
-  tokenHash String   @map("token_hash")
-  expiresAt DateTime @map("expires_at")
-  isRevoked Boolean  @default(false) @map("is_revoked")
-  userAgent String?  @map("user_agent")
-  ipAddress String?  @map("ip_address")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([tokenHash])
-  @@map("refresh_tokens")
-}
-
-model Keranjang {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @map("user_id")
-  produkId  Int      @map("produk_id")
-  kuantitas Int
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  produk    ProdukNutrishop @relation(fields: [produkId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@map("keranjang")
-}
-
-model AlamatPengiriman {
-  id            Int      @id @default(autoincrement())
-  userId        Int      @map("user_id")
-  namaPenerima  String   @map("nama_penerima")
-  noTelepon     String   @map("no_telepon")
-  alamatLengkap String   @map("alamat_lengkap")
-  kelurahan     String
-  kecamatan     String
-  kota          String
-  kodePos       String   @map("kode_pos")
-  isUtama       Boolean  @default(false) @map("is_utama")
-  createdAt     DateTime @default(now()) @map("created_at")
-
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transaksi     Transaksi[] 
-
-  @@map("alamat_pengiriman")
-}
-
-model PertumbuhanLakiLaki {
-  id              Int     @id @default(autoincrement())
-  day             Int     @unique
-  l_height        Float?
-  m_height        Float?
-  s_height        Float?
-  sd4neg_height   Float?
-  sd3neg_height   Float?
-  sd2neg_height   Float?
-  sd1neg_height   Float?
-  sd0_height      Float?
-  sd1_height      Float?
-  sd2_height      Float?
-  sd3_height      Float?
-  sd4_height      Float?
-  p01_height      Float?
-  p1_height       Float?
-  p3_height       Float?
-  p5_height       Float?
-  p10_height      Float?
-  p15_height      Float?
-  p25_height      Float?
-  p50_height      Float?
-  p75_height      Float?
-  p85_height      Float?
-  p90_height      Float?
-  p95_height      Float?
-  p97_height      Float?
-  p99_height      Float?
-  p999_height     Float?
-  sd4neg_weight   Float?
-  sd3neg_weight   Float?
-  sd2neg_weight   Float?
-  sd1neg_weight   Float?
-  sd0_weight      Float?
-  sd1_weight      Float?
-  sd2_weight      Float?
-  sd3_weight      Float?
-  sd4_weight      Float?
-  p01_weight      Float?
-  p1_weight       Float?
-  p3_weight       Float?
-  p5_weight       Float?
-  p10_weight      Float?
-  p15_weight      Float?
-  p25_weight      Float?
-  p50_weight      Float?
-  p75_weight      Float?
-  p85_weight      Float?
-  p90_weight      Float?
-  p95_weight      Float?
-  p97_weight      Float?
-  p99_weight      Float?
-  p999_weight     Float?
-  l_weight        Float?
-  m_weight        Float?
-  s_weight        Float?
-
-  @@map("pertumbuhan_laki_laki")
-}
-
-model PertumbuhanPerempuan {
-  id              Int     @id @default(autoincrement())
-  day             Int     @unique
-  l_height        Float?
-  m_height        Float?
-  s_height        Float?
-  sd4neg_height   Float?
-  sd3neg_height   Float?
-  sd2neg_height   Float?
-  sd1neg_height   Float?
-  sd0_height      Float?
-  sd1_height      Float?
-  sd2_height      Float?
-  sd3_height      Float?
-  sd4_height      Float?
-  p01_height      Float?
-  p1_height       Float?
-  p3_height       Float?
-  p5_height       Float?
-  p10_height      Float?
-  p15_height      Float?
-  p25_height      Float?
-  p50_height      Float?
-  p75_height      Float?
-  p85_height      Float?
-  p90_height      Float?
-  p95_height      Float?
-  p97_height      Float?
-  p99_height      Float?
-  p999_height     Float?
-  sd4neg_weight   Float?
-  sd3neg_weight   Float?
-  sd2neg_weight   Float?
-  sd1neg_weight   Float?
-  sd0_weight      Float?
-  sd1_weight      Float?
-  sd2_weight      Float?
-  sd3_weight      Float?
-  sd4_weight      Float?
-  p01_weight      Float?
-  p1_weight       Float?
-  p3_weight       Float?
-  p5_weight       Float?
-  p10_weight      Float?
-  p15_weight      Float?
-  p25_weight      Float?
-  p50_weight      Float?
-  p75_weight      Float?
-  p85_weight      Float?
-  p90_weight      Float?
-  p95_weight      Float?
-  p97_weight      Float?
-  p99_weight      Float?
-  p999_weight     Float?
-  l_weight        Float?
-  m_weight        Float?
-  s_weight        Float?
-
-  @@map("pertumbuhan_perempuan")
-}
-
-model bmi {
-  id              Int     @id @default(autoincrement())
-  day             Int     @unique
-  bmi_girl        Float?
-  bmi_boy         Float?
-
-  @@map("bmi")
 }

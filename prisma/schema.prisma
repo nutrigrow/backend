@@ -373,10 +373,14 @@ model PertumbuhanPerempuan {
 }
 
 model bmi {
-  id       Int    @id @default(autoincrement())
-  day      Int    @unique
-  bmi_girl Float?
-  bmi_boy  Float?
+  id           Int    @id @default(autoincrement())
+  day          Int    @unique
+  bmi_girl     Float?
+  sd2neg_girl  Float?
+  sd2pos_girl  Float?
+  bmi_boy      Float?
+  sd2neg_boy   Float?
+  sd2pos_boy   Float?
 
   @@map("bmi")
 }

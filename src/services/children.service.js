@@ -363,24 +363,38 @@ const getBmiChart = async (balitaId, userId) => {
   const maxUsiaHari = Math.max(...childData.map((d) => d.usiaHari));
 
   // Fetch WHO BMI standards up to max age
-  const whoField = balita.jenisKelamin === "LAKI_LAKI" ? "bmi_boy" : "bmi_girl";
+  const whoCols = balita.jenisKelamin === "LAKI_LAKI" 
+    ? { median: "bmi_boy", sd2neg: "sd2neg_boy", sd2pos: "sd2pos_boy" }
+    : { median: "bmi_girl", sd2neg: "sd2neg_girl", sd2pos: "sd2pos_girl" };
+
   const whoData = await prisma.bmi.findMany({
     where: { day: { lte: maxUsiaHari } },
-    select: { day: true, [whoField]: true },
+    select: { 
+      day: true, 
+      [whoCols.median]: true,
+      [whoCols.sd2neg]: true,
+      [whoCols.sd2pos]: true,
+    },
     orderBy: { day: "asc" },
   });
 
-  // Build a lookup map: day -> WHO BMI value
+  // Build a lookup map: day -> WHO BMI data
   const whoMap = {};
   whoData.forEach((row) => {
-    whoMap[row.day] = row[whoField];
+    whoMap[row.day] = {
+      median: row[whoCols.median],
+      sd2neg: row[whoCols.sd2neg],
+      sd2pos: row[whoCols.sd2pos],
+    };
   });
 
   return childData.map(({ usiaHari, bmiAnak, tanggalCatat }) => ({
     tanggalCatat,
     usiaHari,
     bmiAnak,
-    bmiStandarWho: whoMap[usiaHari] ?? null,
+    bmiStandarWho: whoMap[usiaHari]?.median ?? null,
+    bmiSd2Neg: whoMap[usiaHari]?.sd2neg ?? null,
+    bmiSd2Pos: whoMap[usiaHari]?.sd2pos ?? null,
   }));
 };
 

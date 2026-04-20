@@ -5,7 +5,10 @@ const { authenticate } = require('../middlewares/auth.middleware');
 const { authorize } = require('../middlewares/role.middleware');
 const upload = require('../middlewares/upload.middleware');
 
-// All routes in here require authentication
+// Midtrans webhook must be public (no JWT)
+router.post('/midtrans/webhook', nutrishopController.handleMidtransWebhook);
+
+// All routes below require authentication
 router.use(authenticate);
 
 // ============================================
@@ -37,6 +40,12 @@ router.get('/cart', nutrishopController.getCart);
 // POST /api/cart
 router.post('/cart', nutrishopController.addToCart);
 
+// PATCH /api/cart/:id
+router.patch('/cart/:id', nutrishopController.updateCartItemQuantity);
+
+// DELETE /api/cart/:id
+router.delete('/cart/:id', nutrishopController.deleteCartItem);
+
 // ============================================
 // ADDRESS ROUTES (Protected)
 // ============================================
@@ -56,5 +65,21 @@ router.post('/checkout/cart', nutrishopController.checkoutCart);
 
 // POST /api/checkout/direct
 router.post('/checkout/direct', nutrishopController.checkoutDirect);
+
+// ============================================
+// ORDER ROUTES (Protected)
+// ============================================
+
+// GET /api/orders
+router.get('/orders', nutrishopController.getOrders);
+
+// GET /api/orders/:id
+router.get('/orders/:id', nutrishopController.getOrderById);
+
+// POST /api/orders/:id/pay
+router.post('/orders/:id/pay', nutrishopController.payOrder);
+
+// POST /api/orders/:id/sync-payment
+router.post('/orders/:id/sync-payment', nutrishopController.syncOrderPayment);
 
 module.exports = router;

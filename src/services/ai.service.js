@@ -27,6 +27,17 @@ const predictStunting = (data) => {
     let result = '';
     let error = '';
 
+    // Timeout to prevent hanging if Python process gets stuck
+    const timeout = setTimeout(() => {
+      pyProcess.kill();
+      reject('AI Prediction timed out after 10 seconds');
+    }, 10000);
+
+    pyProcess.on('error', (err) => {
+      clearTimeout(timeout);
+      reject(`Failed to start Python process: ${err.message}`);
+    });
+
     pyProcess.stdout.on('data', (data) => {
       result += data.toString();
     });
@@ -36,6 +47,7 @@ const predictStunting = (data) => {
     });
 
     pyProcess.on('close', (code) => {
+      clearTimeout(timeout);
       if (code !== 0) {
         return reject(`Python process exited with code ${code}: ${error}`);
       }

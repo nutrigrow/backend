@@ -1,0 +1,23 @@
+{
+  "feature_names": [
+    "umur_bulan",
+    "jenis_kelamin",
+    "tinggi_badan_anak_cm",
+    "berat_badan_anak_kg",
+    "tinggi_badan_ibu_cm"
+  ],
+  "model_type": "RandomForestClassifier",
+  "n_estimators": 100,
+  "training_samples": 4434,
+  "test_accuracy": 0.9385530227948464,
+  "test_roc_auc": 0.98388146149879,
+  "cv_f1_mean": 0.9364177989764754,
+  "cv_f1_std": 0.004381720926103658,
+  "feature_importance": {
+    "umur_bulan": 0.3975511651173617,
+    "jenis_kelamin": 0.008650254287825383,
+    "tinggi_badan_anak_cm": 0.40092433027902297,
+    "berat_badan_anak_kg": 0.13486128242015885,
+    "tinggi_badan_ibu_cm": 0.05801296789563112
+  }
+}

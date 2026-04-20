@@ -1,5 +1,6 @@
 const prisma = require("../config/database");
 const ApiError = require("../utils/ApiError");
+const aiService = require("./ai.service");
 
 // ============================================
 // PERCENTILE HELPERS
@@ -194,14 +195,44 @@ const getChildName = async (balitaId, userId) => {
 };
 
 const createGrowthRecord = async (balitaId, userId, body) => {
-  await assertOwnership(balitaId, userId);
+  const balita = await assertOwnership(balitaId, userId);
   const { tinggiBadan, beratBadan, tanggalCatat } = body;
+
+  const tb = parseFloat(tinggiBadan);
+  const bb = parseFloat(beratBadan);
+  const date = new Date(tanggalCatat);
+
+  // 1. Calculate age for AI
+  const ageDays = calcAgeDays(balita.tanggalLahir, date);
+  const ageMonths = ageDays / 30.44;
+
+  // 2. Run AI Prediction (Async but we want to store it)
+  let risikoStuntingMl = null;
+  let mlConfidence = null;
+
+  try {
+    const prediction = await aiService.predictStunting({
+      umurBulan: ageMonths,
+      jenisKelamin: balita.jenisKelamin,
+      tinggiBadan: tb,
+      beratBadan: bb,
+      tinggiBadanIbu: null, // Always null for now (uses fallback in python)
+    });
+    risikoStuntingMl = prediction.prediction_label;
+    mlConfidence = prediction.confidence * 100; // Convert to percentage
+  } catch (error) {
+    console.error("AI Prediction failed:", error);
+    // Continue saving record even if AI fails, but fields will be null
+  }
+
   return prisma.rekamPertumbuhan.create({
     data: {
       balitaId,
-      tinggiBadan: parseFloat(tinggiBadan),
-      beratBadan: parseFloat(beratBadan),
-      tanggalCatat: new Date(tanggalCatat),
+      tinggiBadan: tb,
+      beratBadan: bb,
+      tanggalCatat: date,
+      risikoStuntingMl,
+      mlConfidence,
     },
   });
 };
@@ -293,7 +324,13 @@ const getPercentile = async (balitaId, userId) => {
   const histories = await prisma.rekamPertumbuhan.findMany({
     where: { balitaId },
     orderBy: { tanggalCatat: "desc" },
-    select: { tinggiBadan: true, beratBadan: true, tanggalCatat: true },
+    select: {
+      tinggiBadan: true,
+      beratBadan: true,
+      tanggalCatat: true,
+      risikoStuntingMl: true,
+      mlConfidence: true,
+    },
   });
 
   if (!histories.length) return [];
@@ -333,6 +370,8 @@ const getPercentile = async (balitaId, userId) => {
         beratBadan: rec.beratBadan,
         persentilTinggi,
         persentilBerat,
+        risikoStuntingMl: rec.risikoStuntingMl,
+        mlConfidence: rec.mlConfidence,
       };
     }),
   );

@@ -1,68 +1,88 @@
-const { spawn } = require('child_process');
+const ort = require('onnxruntime-node');
 const path = require('path');
-const dotenv = require('dotenv');
+const scaler = require('../utils/scaler-utils');
 
-dotenv.config();
+const MODEL_PATH = path.join(__dirname, '..', 'assets', 'models', 'nutrigrow_stunting.onnx');
+const FALLBACK_MOM_HEIGHT = 151.5;
 
-const PYTHON_PATH = process.env.PYTHON_PATH || 'python';
-const PREDICT_SCRIPT_PATH = path.join(__dirname, '..', 'utils', 'predict.py');
+let session = null;
 
 /**
- * Service to handle AI model predictions by bridging to a Python script.
+ * Loads the ONNX session once (lazy singleton).
  */
-const predictStunting = (data) => {
-  return new Promise((resolve, reject) => {
-    // Prepare standardized input for the Python script
-    // model features: [age_months, sex, height, weight, mom_height]
-    const inputPayload = JSON.stringify({
-      umur_bulan: data.umurBulan,
-      jenis_kelamin: data.jenisKelamin === 'LAKI_LAKI' ? 0 : 1, // Encode based on training (0=M, 1=F)
-      tinggi_badan_anak_cm: data.tinggiBadan,
-      berat_badan_anak_kg: data.beratBadan,
-      tinggi_badan_ibu_cm: data.tinggiBadanIbu || null // fallback handled in python
-    });
+const getSession = async () => {
+  if (!session) {
+    try {
+      session = await ort.InferenceSession.create(MODEL_PATH);
+    } catch (err) {
+      console.error('Failed to load ONNX model:', err);
+      throw new Error('AI Model initialization failed');
+    }
+  }
+  return session;
+};
 
-    const pyProcess = spawn(PYTHON_PATH, [PREDICT_SCRIPT_PATH, inputPayload]);
+/**
+ * Service to handle AI model predictions using ONNX Runtime.
+ * No longer requires Python environment.
+ * 
+ * @param {Object} data - Input growth data
+ * @returns {Promise<Object>} - Standardized prediction result
+ */
+const predictStunting = async (data) => {
+  try {
+    const sess = await getSession();
 
-    let result = '';
-    let error = '';
+    // Prepare input: [umur_bulan, jenis_kelamin, tinggi_badan_anak_cm, berat_badan_anak_kg, tinggi_badan_ibu_cm]
+    const features = [
+      Number(data.umurBulan) || 0,
+      data.jenisKelamin === 'LAKI_LAKI' ? 0 : 1,
+      Number(data.tinggiBadan) || 0,
+      Number(data.beratBadan) || 0,
+      Number(data.tinggiBadanIbu) || FALLBACK_MOM_HEIGHT
+    ];
 
-    // Timeout to prevent hanging if Python process gets stuck
-    const timeout = setTimeout(() => {
-      pyProcess.kill();
-      reject('AI Prediction timed out after 10 seconds');
-    }, 10000);
+    // Normalize
+    const scaledFeatures = scaler.transform(features);
 
-    pyProcess.on('error', (err) => {
-      clearTimeout(timeout);
-      reject(`Failed to start Python process: ${err.message}`);
-    });
+    // Run inference
+    // initial_type was named 'float_input' in the conversion script
+    const feeds = { float_input: new ort.Tensor('float32', scaledFeatures, [1, 5]) };
+    const results = await sess.run(feeds);
 
-    pyProcess.stdout.on('data', (data) => {
-      result += data.toString();
-    });
+    // Results in skl2onnx usually have:
+    // output_label: Int64 tensor [1]
+    // output_probability: sequence of map/array
+    
+    const prediction = Number(results.label.data[0]);
+    const probabilities = results.probabilities.data; 
+    
+    // With zipmap: False, probabilities is a flat Float32Array [prob_class_0, prob_class_1]
+    const probNormal = Number(probabilities[0]);
+    const probStunting = Number(probabilities[1]);
 
-    pyProcess.stderr.on('data', (data) => {
-      error += data.toString();
-    });
+    const confidence = prediction === 1 ? probStunting : probNormal;
 
-    pyProcess.on('close', (code) => {
-      clearTimeout(timeout);
-      if (code !== 0) {
-        return reject(`Python process exited with code ${code}: ${error}`);
+    return {
+      prediction: prediction, // 0 for Normal, 1 for Stunting
+      prediction_label: prediction === 1 ? "Stunting" : "Normal",
+      confidence: Number(confidence),
+      probabilities: {
+        normal: Number(probNormal),
+        stunting: Number(probStunting)
+      },
+      features_used: {
+        age_months: features[0],
+        sex: features[1],
+        height_cm: features[2],
+        weight_kg: features[3],
+        mom_height_cm: features[4]
       }
-
-      try {
-        const parsedResult = JSON.parse(result);
-        if (parsedResult.error) {
-          return reject(parsedResult.error);
-        }
-        resolve(parsedResult);
-      } catch (e) {
-        reject(`Failed to parse AI output: ${result}`);
-      }
-    });
-  });
+    };
+  } catch (err) {
+    console.error('AI Prediction execution error:', err);
+    throw new Error(`AI Prediction failed: ${err.message}`);
+  }
 };
 
 module.exports = {

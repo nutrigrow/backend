@@ -2,7 +2,6 @@ node_modules/
 Planning/
 frontend/
 .env
-.env.example
 dist/
 logs/
 *.log

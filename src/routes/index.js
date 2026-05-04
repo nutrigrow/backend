@@ -5,12 +5,18 @@ const authRoutes = require("./auth.routes");
 const nutrishopRoutes = require("./nutrishop.routes");
 const childrenRoutes = require("./children.routes");
 const healthLogRoutes = require("./healthLog.routes");
+const specialistRoutes = require("./specialist.routes");
+const consultationRoutes = require("./consultation.routes");
+const articleRoutes = require("./article.routes");
 
 // Mount route modules
 router.use("/auth", authRoutes);
-router.use("/", nutrishopRoutes);
 router.use("/children", childrenRoutes);
 router.use("/health-logs", healthLogRoutes);
+router.use("/specialists", specialistRoutes);
+router.use("/consultations", consultationRoutes);
+router.use("/articles", articleRoutes);
+router.use("/", nutrishopRoutes);
 
 // Health check for API
 router.get("/hello", (req, res) => {

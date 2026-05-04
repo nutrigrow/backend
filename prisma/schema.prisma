@@ -151,9 +151,16 @@ model DetailTransaksi {
 model ProfilAhliGizi {
   id              Int          @id @default(autoincrement())
   userId          Int          @unique @map("user_id")
+  gelar           String?
   sertifikasi     String
   spesialisasi    String?
-  biayaKonsultasi Int          @map("biaya_konsultasi")
+  pengalamanTahun Int          @default(0) @map("pengalaman_tahun")
+  pendidikan      Json?
+  registrasiMedis String?      @map("registrasi_medis")
+  bidangKeahlian  Json?        @map("bidang_keahlian")
+  jadwal          Json?
+  biayaVideoCall  Int          @default(0) @map("biaya_video_call")
+  biayaChat       Int          @default(0) @map("biaya_chat")
   fotoUrl         String?      @map("foto_url")
   bio             String?
   isAvailable     Boolean      @default(true) @map("is_available")
@@ -172,6 +179,7 @@ model Konsultasi {
   transaksiId       Int?             @unique @map("transaksi_id")
   jadwalSesi        DateTime         @map("jadwal_sesi")
   durasiMenit       Int              @default(30) @map("durasi_menit")
+  metode            MetodeKonsultasi @default(VIDEO_CALL)
   status            StatusKonsultasi @default(BOOKED)
   catatanKonsultasi String?          @map("catatan_konsultasi")
   linkMeeting       String?          @map("link_meeting")
@@ -383,6 +391,11 @@ model bmi {
   sd2pos_boy   Float?
 
   @@map("bmi")
+}
+
+enum MetodeKonsultasi {
+  VIDEO_CALL
+  CHAT
 }
 
 enum Role {

@@ -284,6 +284,14 @@ const updatePaymentStatusByOrderId = async ({
             include: ORDER_INCLUDE
         });
 
+        // SPECIAL HANDLING: If Tele-Nutritionist payment is SUCCESS, update consultation status
+        if (nextStatusBayar === 'SUCCESS' && existing.jenisTransaksi === 'TELE_NUTRITIONIST') {
+            await tx.konsultasi.update({
+                where: { transaksiId: existing.id },
+                data: { status: 'CONFIRMED' }
+            });
+        }
+
         return order;
     });
 

@@ -1,0 +1,12 @@
+node_modules/
+.env
+.env.*
+dist/
+logs/
+*.log
+.git/
+.github/
+README.md
+Planning/
+.DS_Store
+patch_percentile.js

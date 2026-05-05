@@ -1,0 +1,19 @@
+# ── Team Lead — review semua perubahan ─────────────────────────────────────
+*                       @rynadag
+
+# ── Backend: routes, models, controllers, services ─────────────────────────
+/src/routes/            @mexsfo @rhzain
+/src/models/            @mexsfo @rhzain
+/src/controllers/       @mexsfo @rhzain
+/src/services/          @mexsfo @rhzain
+/src/validators/        @mexsfo @rhzain
+/src/middlewares/       @mexsfo @rhzain
+
+# ── Database schema — wajib approve Team Lead ───────────────────────────────
+/prisma/                @rynadag
+
+# ── Infrastructure — wajib approve Team Lead ────────────────────────────────
+Dockerfile              @rynadag
+docker-compose.yml      @rynadag
+prisma.config.ts        @rynadag
+.github/                @rynadag

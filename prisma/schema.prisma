@@ -14,6 +14,8 @@ model User {
   googleId         String?            @unique @map("google_id")
   avatarUrl        String?            @map("avatar_url")
   role             Role               @default(USER)
+  isActive         Boolean            @default(true) @map("is_active")
+  deletedAt        DateTime?          @map("deleted_at")
   emailVerifiedAt  DateTime?          @map("email_verified_at")
   createdAt        DateTime           @default(now()) @map("created_at")
   updatedAt        DateTime           @updatedAt @map("updated_at")
@@ -157,6 +159,7 @@ model ProfilAhliGizi {
   pengalamanTahun Int          @default(0) @map("pengalaman_tahun")
   pendidikan      Json?
   registrasiMedis String?      @map("registrasi_medis")
+  noTelepon        String?      @map("no_telepon")
   bidangKeahlian  Json?        @map("bidang_keahlian")
   jadwal          Json?
   biayaVideoCall  Int          @default(0) @map("biaya_video_call")
@@ -198,6 +201,7 @@ model Konsultasi {
 model ArtikelEdukasi {
   id          Int             @id @default(autoincrement())
   judul       String
+  slug        String?         @unique
   konten      String
   kategori    KategoriArtikel
   gambarUrl   String?         @map("gambar_url")

@@ -36,6 +36,10 @@ passport.use(
                 });
 
                 if (user) {
+                    if (!user.isActive || user.deletedAt) {
+                        return done(null, user);
+                    }
+
                     // Link Google account if user registered with email/password before
                     if (!user.googleId) {
                         user = await prisma.user.update({

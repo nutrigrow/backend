@@ -30,10 +30,25 @@ const getAvailability = async (specialistId, dateStr) => {
 
   const specialist = await prisma.profilAhliGizi.findUnique({
     where: { id: Number(specialistId) },
-    select: { jadwal: true }
+    select: {
+      jadwal: true,
+      isAvailable: true,
+      user: {
+        select: {
+          isActive: true,
+          deletedAt: true,
+        },
+      },
+    },
   });
 
-  if (!specialist || !specialist.jadwal) {
+  if (
+    !specialist ||
+    !specialist.jadwal ||
+    !specialist.isAvailable ||
+    !specialist.user?.isActive ||
+    specialist.user?.deletedAt
+  ) {
     throw ApiError.notFound("Jadwal spesialis tidak ditemukan");
   }
 
@@ -107,6 +122,9 @@ const createBooking = async (userId, body) => {
   });
 
   if (!specialist) throw ApiError.notFound("Spesialis tidak ditemukan");
+  if (!specialist.isAvailable || !specialist.user?.isActive || specialist.user?.deletedAt) {
+    throw ApiError.notFound("Spesialis tidak ditemukan");
+  }
 
   const harga = metode === 'VIDEO_CALL' ? specialist.biayaVideoCall : specialist.biayaChat;
   const pajak = Math.round(harga * 0.1);

@@ -2,6 +2,39 @@ const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
 
+const sanitizeFilenamePrefix = (value, fallback) => {
+    const sanitized = String(value || fallback)
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+    return sanitized || fallback;
+};
+
+const compressAndSaveImage = async (buffer, folder, filenamePrefix = 'image') => {
+    const safeFolder = String(folder || '').replace(/[^a-z0-9_-]/gi, '');
+    const safePrefix = sanitizeFilenamePrefix(filenamePrefix, 'image');
+    const uploadPath = path.join(__dirname, '../../public/uploads', safeFolder || 'images');
+
+    if (!fs.existsSync(uploadPath)) {
+        fs.mkdirSync(uploadPath, { recursive: true });
+    }
+
+    const filename = `${safePrefix}-${Date.now()}.webp`;
+    const filepath = path.join(uploadPath, filename);
+
+    await sharp(buffer)
+        .resize(800, 800, {
+            fit: sharp.fit.inside,
+            withoutEnlargement: true
+        })
+        .webp({ quality: 80 })
+        .toFile(filepath);
+
+    return `/public/uploads/${safeFolder || 'images'}/${filename}`;
+};
+
 /**
  * Compresses an image and saves it to a specified directory.
  * Best practice: convert to WebP, resize max width/height, quality 80 for good balance.
@@ -12,29 +45,15 @@ const fs = require('fs');
  * @returns {Promise<string>} The relative path for URL (e.g. '/public/uploads/products/product-123.webp')
  */
 const compressAndSaveProductImage = async (buffer, filenamePrefix = 'product') => {
-    // 1. Ensure directory exists
-    const uploadPath = path.join(__dirname, '../../public/uploads/products');
-    if (!fs.existsSync(uploadPath)) {
-        fs.mkdirSync(uploadPath, { recursive: true });
-    }
+    return compressAndSaveImage(buffer, 'products', filenamePrefix);
+};
 
-    // 2. Generate unique filename
-    const filename = `${filenamePrefix}-${Date.now()}.webp`;
-    const filepath = path.join(uploadPath, filename);
-
-    // 3. Compress with Sharp
-    await sharp(buffer)
-        .resize(800, 800, {
-            fit: sharp.fit.inside,
-            withoutEnlargement: true // Don't enlarge if image is smaller than 800x800
-        })
-        .webp({ quality: 80 })
-        .toFile(filepath);
-
-    // 4. Return URL path
-    return `/public/uploads/products/${filename}`;
+const compressAndSaveArticleImage = async (buffer, filenamePrefix = 'article') => {
+    return compressAndSaveImage(buffer, 'articles', filenamePrefix);
 };
 
 module.exports = {
-    compressAndSaveProductImage
+    compressAndSaveImage,
+    compressAndSaveProductImage,
+    compressAndSaveArticleImage
 };

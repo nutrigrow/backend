@@ -35,6 +35,8 @@ const authenticate = async (req, _res, next) => {
                 email: true,
                 role: true,
                 avatarUrl: true,
+                isActive: true,
+                deletedAt: true,
                 emailVerifiedAt: true,
                 createdAt: true,
             },
@@ -42,6 +44,10 @@ const authenticate = async (req, _res, next) => {
 
         if (!user) {
             throw ApiError.unauthorized('User tidak ditemukan');
+        }
+
+        if (!user.isActive || user.deletedAt) {
+            throw ApiError.forbidden('Akun tidak aktif');
         }
 
         // 5. Attach user to request
@@ -76,9 +82,11 @@ const optionalAuth = async (req, _res, next) => {
                     email: true,
                     role: true,
                     avatarUrl: true,
+                    isActive: true,
+                    deletedAt: true,
                 },
             });
-            req.user = user || null;
+            req.user = user && user.isActive && !user.deletedAt ? user : null;
         }
 
         next();

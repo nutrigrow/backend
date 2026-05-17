@@ -13,6 +13,12 @@ const getAllSpecialists = async (filter = {}, options = {}) => {
 
   const where = {
     isAvailable: true,
+    user: {
+      is: {
+        isActive: true,
+        deletedAt: null,
+      },
+    },
   };
 
   if (category && category !== "Semua") {
@@ -21,7 +27,7 @@ const getAllSpecialists = async (filter = {}, options = {}) => {
 
   if (search) {
     where.OR = [
-      { user: { nama: { contains: search, mode: "insensitive" } } },
+      { user: { is: { nama: { contains: search, mode: "insensitive" } } } },
       { spesialisasi: { contains: search, mode: "insensitive" } },
       { gelar: { contains: search, mode: "insensitive" } },
       { bio: { contains: search, mode: "insensitive" } },
@@ -37,6 +43,8 @@ const getAllSpecialists = async (filter = {}, options = {}) => {
           select: {
             nama: true,
             avatarUrl: true,
+            isActive: true,
+            deletedAt: true,
           },
         },
       },
@@ -79,12 +87,18 @@ const getSpecialistById = async (id) => {
         select: {
           nama: true,
           avatarUrl: true,
+          isActive: true,
+          deletedAt: true,
         },
       },
     },
   });
 
   if (!specialist) {
+    throw ApiError.notFound("Spesialis tidak ditemukan");
+  }
+
+  if (!specialist.isAvailable || !specialist.user?.isActive || specialist.user?.deletedAt) {
     throw ApiError.notFound("Spesialis tidak ditemukan");
   }
 

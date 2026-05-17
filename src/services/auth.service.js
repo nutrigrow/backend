@@ -13,6 +13,16 @@ const {
   sendVerificationEmail,
 } = require("./email.service");
 
+const assertUserCanAuthenticate = (user) => {
+  if (!user || user.deletedAt) {
+    throw ApiError.unauthorized("Email atau password salah");
+  }
+
+  if (!user.isActive) {
+    throw ApiError.forbidden("Akun tidak aktif");
+  }
+};
+
 // ============================================
 // TOKEN HELPERS
 // ============================================
@@ -120,9 +130,7 @@ const register = async ({ nama, email, password }) => {
 const login = async ({ email, password }, meta = {}) => {
   // Find user by email
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) {
-    throw ApiError.unauthorized("Email atau password salah");
-  }
+  assertUserCanAuthenticate(user);
 
   // Check if user has a password (might be Google-only account)
   if (!user.passwordHash) {
@@ -167,6 +175,8 @@ const login = async ({ email, password }, meta = {}) => {
  * Google accounts are considered verified by default.
  */
 const googleAuth = async (user, meta = {}) => {
+  assertUserCanAuthenticate(user);
+
   const tokens = await generateAuthTokens(user, meta);
 
   const userData = {
@@ -293,6 +303,10 @@ const refreshAccessToken = async (refreshTokenRaw, meta = {}) => {
     );
   }
 
+  if (!storedToken.user.isActive || storedToken.user.deletedAt) {
+    throw ApiError.forbidden("Akun tidak aktif");
+  }
+
   // 3. Revoke old refresh token (token rotation)
   await prisma.refreshToken.update({
     where: { id: storedToken.id },
@@ -331,7 +345,7 @@ const forgotPassword = async (email) => {
   const user = await prisma.user.findUnique({ where: { email } });
 
   // Always return success to prevent email enumeration attacks
-  if (!user) return;
+  if (!user || !user.isActive || user.deletedAt) return;
 
   // Don't send reset for Google-only accounts
   if (!user.passwordHash && user.googleId) return;
@@ -365,8 +379,11 @@ const resetPassword = async (token, newPassword) => {
 
   // Find user
   const user = await prisma.user.findUnique({ where: { id: decoded.sub } });
-  if (!user) {
+  if (!user || user.deletedAt) {
     throw ApiError.notFound("User tidak ditemukan");
+  }
+  if (!user.isActive) {
+    throw ApiError.forbidden("Akun tidak aktif");
   }
 
   // Hash new password
@@ -391,6 +408,13 @@ const resetPassword = async (token, newPassword) => {
  */
 const changePassword = async (userId, currentPassword, newPassword) => {
   const user = await prisma.user.findUnique({ where: { id: userId } });
+
+  if (!user || user.deletedAt) {
+    throw ApiError.notFound("User tidak ditemukan");
+  }
+  if (!user.isActive) {
+    throw ApiError.forbidden("Akun tidak aktif");
+  }
 
   if (!user.passwordHash) {
     throw ApiError.badRequest(
@@ -424,6 +448,8 @@ const getMe = async (userId) => {
       email: true,
       role: true,
       avatarUrl: true,
+      isActive: true,
+      deletedAt: true,
       emailVerifiedAt: true,
       googleId: true,
       tinggiBadanIbu: true,
@@ -432,8 +458,11 @@ const getMe = async (userId) => {
     },
   });
 
-  if (!user) {
+  if (!user || user.deletedAt) {
     throw ApiError.notFound("User tidak ditemukan");
+  }
+  if (!user.isActive) {
+    throw ApiError.forbidden("Akun tidak aktif");
   }
 
   // Don't expose googleId directly, just indicate whether it's linked

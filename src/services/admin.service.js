@@ -156,6 +156,7 @@ const serializeUser = (user) => ({
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
   deletedAt: user.deletedAt,
+  tinggiBadanIbu: user.tinggiBadanIbu,
 });
 
 const serializeProduct = (product) => ({

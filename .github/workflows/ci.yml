@@ -4,10 +4,13 @@ on:
   pull_request:
     branches:
       - main
-      - develop
   push:
     branches:
-      - develop
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   # ──────────────────────────────────────────────────
@@ -16,6 +19,7 @@ jobs:
   lint:
     name: 🔍 Syntax & Smoke Test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -45,6 +49,7 @@ jobs:
   security:
     name: 🔒 Security Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -60,25 +65,35 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: npm audit (high severity)
+      - name: npm audit (high and critical)
         run: npm audit --audit-level=high
-        # continue-on-error: true  ← aktifkan jika ingin non-blocking
 
       - name: Detect hardcoded secrets in source
         run: |
-          # Cari credential yang terhardcode di file .js / .ts
-          # Pattern: KEY = "literal_string" (bukan template literal / env var)
+          set -euo pipefail
+
           FOUND=$(grep -rn \
-            -E "(JWT_SECRET|DATABASE_URL|SMTP_PASS|GOOGLE_CLIENT_SECRET)\s*=\s*['\"][^'\"\$\{]" \
+            -E "(JWT_SECRET|DATABASE_URL|DIRECT_URL|SMTP_PASS|GOOGLE_CLIENT_SECRET|MIDTRANS_SERVER_KEY)\s*=\s*['\"][^'\"\$\{]" \
             --include="*.js" --include="*.ts" \
             src/ 2>/dev/null || true)
 
           if [ -n "$FOUND" ]; then
-            echo "❌ Hardcoded secrets terdeteksi di source code:"
+            echo "::error::Hardcoded secret-style assignment detected in source:"
             echo "$FOUND"
             exit 1
           fi
-          echo "✅ Tidak ada hardcoded secrets di source code"
+
+          PATTERN_MATCHES=$(grep -RInE \
+            "(AKIA[0-9A-Z]{16}|-----BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY-----|ghp_[A-Za-z0-9_]{36}|sk-[A-Za-z0-9]{20,})" \
+            src prisma Dockerfile package.json package-lock.json 2>/dev/null || true)
+
+          if [ -n "$PATTERN_MATCHES" ]; then
+            echo "::error::Potential leaked secret pattern detected:"
+            echo "$PATTERN_MATCHES"
+            exit 1
+          fi
+
+          echo "✅ No hardcoded secrets or common leaked secret patterns detected"
 
   # ──────────────────────────────────────────────────
   # JOB 3: Prisma Schema Validation
@@ -86,6 +101,7 @@ jobs:
   prisma-validate:
     name: 🗄️ Prisma Schema Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -115,6 +131,7 @@ jobs:
     name: 🐳 Docker Build Check
     runs-on: ubuntu-latest
     needs: [lint, security, prisma-validate]
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code

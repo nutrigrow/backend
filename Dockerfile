@@ -3,7 +3,7 @@
 # Install semua deps (termasuk devDeps untuk prisma generate),
 # generate Prisma client, lalu prune devDeps.
 # ─────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:26-alpine AS builder
 
 WORKDIR /app
 
@@ -27,7 +27,7 @@ RUN npm prune --omit=dev
 # TAHAP 2: PRODUCTION
 # Image minimal dengan non-root user dan dumb-init.
 # ─────────────────────────────────────────────────────
-FROM node:20-alpine AS production
+FROM node:26-alpine AS production
 
 # dumb-init: meneruskan sinyal (SIGTERM dll.) ke proses Node dengan benar
 RUN apk add --no-cache dumb-init

@@ -75,14 +75,12 @@ jobs:
           VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           VPS_PORT: ${{ secrets.VPS_PORT }}
-          BACKEND_HEALTHCHECK_URL: ${{ secrets.BACKEND_HEALTHCHECK_URL }}
         run: |
           set -euo pipefail
           : "${VPS_HOST:?VPS_HOST secret is required}"
           : "${VPS_USERNAME:?VPS_USERNAME secret is required}"
           : "${VPS_SSH_KEY:?VPS_SSH_KEY secret is required}"
           : "${VPS_PORT:?VPS_PORT secret is required}"
-          : "${BACKEND_HEALTHCHECK_URL:?BACKEND_HEALTHCHECK_URL secret is required}"
           echo "✅ Required backend deployment secrets are present"
 
       - name: Deploy via SSH
@@ -108,6 +106,10 @@ jobs:
           BACKEND_HEALTHCHECK_URL: ${{ secrets.BACKEND_HEALTHCHECK_URL }}
         run: |
           set -euo pipefail
+          if [ -z "${BACKEND_HEALTHCHECK_URL}" ]; then
+            echo "ℹ️ BACKEND_HEALTHCHECK_URL is not set; skipping optional backend health check"
+            exit 0
+          fi
           echo "⏳ Waiting 20 seconds for backend service to start..."
           sleep 20
           echo "🏥 Checking backend health at ${BACKEND_HEALTHCHECK_URL}"

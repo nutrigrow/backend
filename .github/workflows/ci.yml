@@ -85,7 +85,7 @@ jobs:
 
           PATTERN_MATCHES=$(grep -RInE \
             "(AKIA[0-9A-Z]{16}|-----BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY-----|ghp_[A-Za-z0-9_]{36}|sk-[A-Za-z0-9]{20,})" \
-            src prisma Dockerfile package.json package-lock.json 2>/dev/null || true)
+            src prisma .github/docker/backend.Dockerfile package.json package-lock.json 2>/dev/null || true)
 
           if [ -n "$PATTERN_MATCHES" ]; then
             echo "::error::Potential leaked secret pattern detected:"
@@ -144,6 +144,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: .github/docker/backend.Dockerfile
           push: false
           tags: nutrigrow-backend:ci-${{ github.sha }}
           cache-from: type=gha

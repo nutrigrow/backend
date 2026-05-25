@@ -121,11 +121,21 @@ const deleteGrowthRecord = catchAsync(async (req, res) => {
   success(res, { message: 'Data pertumbuhan berhasil dihapus' });
 });
 
+/**
+ * @desc  Delete a child profile
+ * @route DELETE /api/children/:id
+ */
+const deleteChild = catchAsync(async (req, res) => {
+  await childrenService.deleteChild(parseInt(req.params.id), req.user.id);
+  success(res, { message: 'Profil anak berhasil dihapus' });
+});
+
 module.exports = {
   getAllChildren,
   createChild,
   getChildById,
   updateChild,
+  deleteChild,
   getChildName,
   createGrowthRecord,
   updateGrowthRecord,

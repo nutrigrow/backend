@@ -60,6 +60,58 @@ const PERCENTILE_LABELS = [
   "P99.9",
 ];
 
+const getApproximatedWhoRow = (day, isLaki) => {
+  const month = day / 30.4375;
+  
+  let baseH;
+  if (isLaki) {
+    baseH = 49.9 + 2.5 * month - 0.026 * Math.pow(month, 2) + 0.00012 * Math.pow(month, 3);
+  } else {
+    baseH = 49.1 + 2.4 * month - 0.025 * Math.pow(month, 2) + 0.00011 * Math.pow(month, 3);
+  }
+  
+  let baseW;
+  if (isLaki) {
+    baseW = 3.3 + 0.75 * month - 0.012 * Math.pow(month, 2) + 0.000075 * Math.pow(month, 3);
+  } else {
+    baseW = 3.2 + 0.70 * month - 0.011 * Math.pow(month, 2) + 0.000070 * Math.pow(month, 3);
+  }
+
+  return {
+    p50_height: baseH,
+    p75_height: baseH * 1.03,
+    p85_height: baseH * 1.045,
+    p90_height: baseH * 1.055,
+    p95_height: baseH * 1.07,
+    p97_height: baseH * 1.08,
+    p99_height: baseH * 1.10,
+    p999_height: baseH * 1.15,
+    p25_height: baseH * 0.97,
+    p15_height: baseH * 0.955,
+    p10_height: baseH * 0.945,
+    p5_height: baseH * 0.93,
+    p3_height: baseH * 0.92,
+    p1_height: baseH * 0.90,
+    p01_height: baseH * 0.85,
+
+    p50_weight: baseW,
+    p75_weight: baseW * 1.08,
+    p85_weight: baseW * 1.12,
+    p90_weight: baseW * 1.15,
+    p95_weight: baseW * 1.20,
+    p97_weight: baseW * 1.23,
+    p99_weight: baseW * 1.28,
+    p999_weight: baseW * 1.40,
+    p25_weight: baseW * 0.92,
+    p15_weight: baseW * 0.88,
+    p10_weight: baseW * 0.85,
+    p5_weight: baseW * 0.80,
+    p3_weight: baseW * 0.77,
+    p1_weight: baseW * 0.72,
+    p01_weight: baseW * 0.65,
+  };
+};
+
 /**
  * Find which percentile bracket a measurement falls into.
  * Returns the label of the highest bracket whose reference value <= measurement,
@@ -121,12 +173,18 @@ const getAllChildren = async (userId) => {
 
 const createChild = async (userId, body) => {
   const { namaDepan, namaAkhir, tanggalLahir, jenisKelamin } = body;
+  
+  const birthDate = new Date(tanggalLahir);
+  if (birthDate > new Date()) {
+    throw ApiError.badRequest("Tanggal lahir tidak boleh di masa depan");
+  }
+
   return prisma.balita.create({
     data: {
       userId,
       namaDepan,
       namaAkhir: namaAkhir || null,
-      tanggalLahir: new Date(tanggalLahir),
+      tanggalLahir: birthDate,
       jenisKelamin,
     },
     select: {
@@ -164,12 +222,18 @@ const getChildById = async (balitaId, userId) => {
 const updateChild = async (balitaId, userId, body) => {
   await assertOwnership(balitaId, userId);
   const { namaDepan, namaAkhir, tanggalLahir, jenisKelamin } = body;
+  
+  const birthDate = new Date(tanggalLahir);
+  if (birthDate > new Date()) {
+    throw ApiError.badRequest("Tanggal lahir tidak boleh di masa depan");
+  }
+
   return prisma.balita.update({
     where: { id: balitaId },
     data: {
       namaDepan,
       namaAkhir: namaAkhir || null,
-      tanggalLahir: new Date(tanggalLahir),
+      tanggalLahir: birthDate,
       jenisKelamin,
     },
     select: {
@@ -179,6 +243,13 @@ const updateChild = async (balitaId, userId, body) => {
       tanggalLahir: true,
       jenisKelamin: true,
     },
+  });
+};
+
+const deleteChild = async (balitaId, userId) => {
+  await assertOwnership(balitaId, userId);
+  return prisma.balita.delete({
+    where: { id: balitaId }
   });
 };
 
@@ -198,9 +269,24 @@ const createGrowthRecord = async (balitaId, userId, body) => {
   const balita = await assertOwnership(balitaId, userId);
   const { tinggiBadan, beratBadan, tanggalCatat } = body;
 
+  const date = new Date(tanggalCatat);
+  if (date > new Date()) {
+    throw ApiError.badRequest("Tanggal pengukuran tidak boleh di masa depan");
+  }
+
+  // Check if growth record on the same date already exists for this child
+  const existingRecord = await prisma.rekamPertumbuhan.findFirst({
+    where: {
+      balitaId,
+      tanggalCatat: date
+    }
+  });
+  if (existingRecord) {
+    throw ApiError.badRequest("Pertumbuhan anak pada tanggal ini sudah tercatat");
+  }
+
   const tb = parseFloat(tinggiBadan);
   const bb = parseFloat(beratBadan);
-  const date = new Date(tanggalCatat);
 
   // 1. Calculate age for AI
   const ageDays = calcAgeDays(balita.tanggalLahir, date);
@@ -257,9 +343,25 @@ const updateGrowthRecord = async (recordId, userId, body) => {
   }
 
   const { tinggiBadan, beratBadan, tanggalCatat } = body;
+  const date = new Date(tanggalCatat);
+  if (date > new Date()) {
+    throw ApiError.badRequest("Tanggal pengukuran tidak boleh di masa depan");
+  }
+
+  // Check if growth record on the same date already exists (excluding current record)
+  const existingRecord = await prisma.rekamPertumbuhan.findFirst({
+    where: {
+      balitaId: record.balitaId,
+      tanggalCatat: date,
+      id: { not: recordId }
+    }
+  });
+  if (existingRecord) {
+    throw ApiError.badRequest("Pertumbuhan anak pada tanggal ini sudah tercatat");
+  }
+
   const tb = parseFloat(tinggiBadan);
   const bb = parseFloat(beratBadan);
-  const date = new Date(tanggalCatat);
 
   // Recalculate AI Prediction for the updated data
   let risikoStuntingMl = record.risikoStuntingMl;
@@ -437,6 +539,10 @@ const getPercentile = async (balitaId, userId) => {
         });
       }
 
+      if (!whoRow || whoRow.p50_height === null || whoRow.p50_weight === null) {
+        whoRow = getApproximatedWhoRow(usiaHari, isLaki);
+      }
+
       const persentilTinggi = findPercentileBracket(
         rec.tinggiBadan,
         whoRow,
@@ -456,6 +562,8 @@ const getPercentile = async (balitaId, userId) => {
         beratBadan: rec.beratBadan,
         persentilTinggi,
         persentilBerat,
+        medianTinggi: whoRow ? whoRow.p50_height : null,
+        medianBerat: whoRow ? whoRow.p50_weight : null,
         risikoStuntingMl: rec.risikoStuntingMl,
         mlConfidence: rec.mlConfidence,
       };
@@ -474,6 +582,7 @@ module.exports = {
   createGrowthRecord,
   updateGrowthRecord,
   deleteGrowthRecord,
+  deleteChild,
   getLatestGrowth,
   getBmiChart,
   getPercentile,

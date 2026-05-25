@@ -13,6 +13,7 @@ router.get('/', childrenController.getAllChildren);
 router.post('/', childrenController.createChild);
 router.get('/:id', childrenController.getChildById);
 router.put('/:id', childrenController.updateChild);
+router.delete('/:id', childrenController.deleteChild);
 
 // ============================================
 // B. Growth Tracker Input

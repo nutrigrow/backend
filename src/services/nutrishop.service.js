@@ -328,11 +328,15 @@ const validateProductStock = async (productId, quantity) => {
 // PRODUCT SERVICES
 // ============================================
 const getProducts = async (filters) => {
-    const { search, minPrice, maxPrice, kategori } = filters;
+    const { search, minPrice, maxPrice, kategori, availableOnly } = filters;
 
     const where = {
         isActive: true
     };
+
+    if (availableOnly === 'true') {
+        where.stok = { gt: 0 };
+    }
 
     if (search) {
         where.namaProduk = {

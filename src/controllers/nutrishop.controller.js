@@ -9,7 +9,8 @@ const getProducts = async (req, res, next) => {
             search: req.query.search,
             minPrice: req.query.minPrice,
             maxPrice: req.query.maxPrice,
-            kategori: req.query.kategori
+            kategori: req.query.kategori,
+            availableOnly: req.query.availableOnly
         };
 
         const products = await nutrishopService.getProducts(filters);

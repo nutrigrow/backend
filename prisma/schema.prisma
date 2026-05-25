@@ -63,6 +63,7 @@ model RekamPertumbuhan {
   createdAt        DateTime    @default(now()) @map("created_at")
   balita           Balita      @relation(fields: [balitaId], references: [id], onDelete: Cascade)
 
+  @@unique([balitaId, tanggalCatat])
   @@index([balitaId])
   @@index([tanggalCatat])
   @@map("rekam_pertumbuhan")

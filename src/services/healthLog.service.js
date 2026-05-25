@@ -181,6 +181,10 @@ const buildBabyGrowthInsight = (records) => {
 const createOrUpdateLog = async (userId, body) => {
   const { data, dateUTC } = mapBodyToPrisma(body);
 
+  if (dateUTC > todayUTC()) {
+    throw ApiError.badRequest("Tanggal catatan kesehatan tidak boleh di masa depan");
+  }
+
   // Cek apakah sudah ada log di tanggal ini dengan fase berbeda
   const existing = await prisma.logKesehatan.findUnique({
     where: {
@@ -192,11 +196,17 @@ const createOrUpdateLog = async (userId, body) => {
     select: { fase: true },
   });
 
-  if (existing && existing.fase !== data.fase) {
-    const existingProfileType = FASE_TO_PROFILE_TYPE_MAP[existing.fase];
-    throw ApiError.conflict(
-      `Log tanggal ini sudah diisi dengan profile_type "${existingProfileType}". Tidak bisa diubah ke profile_type yang berbeda dalam satu hari.`,
-    );
+  if (existing) {
+    if (existing.fase !== data.fase) {
+      const existingProfileType = FASE_TO_PROFILE_TYPE_MAP[existing.fase];
+      throw ApiError.conflict(
+        `Log tanggal ini sudah diisi dengan profile_type "${existingProfileType}". Tidak bisa diubah ke profile_type yang berbeda dalam satu hari.`,
+      );
+    }
+
+    if (!body.is_edit) {
+      throw ApiError.badRequest("Anda sudah memasukkan entry untuk hari ini.");
+    }
   }
 
   const log = await prisma.logKesehatan.upsert({

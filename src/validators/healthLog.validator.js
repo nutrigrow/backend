@@ -53,6 +53,8 @@ const createOrUpdateLogSchema = {
         .int("Frekuensi menyusui harus berupa bilangan bulat")
         .min(0, "Frekuensi menyusui tidak boleh negatif")
         .optional(),
+
+      is_edit: z.boolean().optional(),
     })
     .superRefine((data, ctx) => {
       if (data.profile_type === "teen" && data.is_menstruating === undefined) {

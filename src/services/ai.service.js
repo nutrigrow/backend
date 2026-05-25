@@ -62,11 +62,13 @@ const predictStunting = async (data) => {
     const probStunting = Number(probabilities[1]);
 
     const confidence = prediction === 1 ? probStunting : probNormal;
+    const isMomHeightFallback = !data.tinggiBadanIbu;
 
     return {
       prediction: prediction, // 0 for Normal, 1 for Stunting
       prediction_label: prediction === 1 ? "Stunting" : "Normal",
       confidence: Number(confidence),
+      momHeightFallbackUsed: isMomHeightFallback,
       probabilities: {
         normal: Number(probNormal),
         stunting: Number(probStunting)

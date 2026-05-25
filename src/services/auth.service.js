@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const prisma = require("../config/database");
 const ApiError = require("../utils/ApiError");
+const aiService = require("./ai.service");
 const {
   TOKEN_TYPES,
   TOKEN_EXPIRY,
@@ -506,6 +507,48 @@ const updateMe = async (userId, updateData) => {
       updatedAt: true,
     },
   });
+
+  // If tinggiBadanIbu is updated, recalculate ML predictions for all growth records of the user's children
+  if (finalData.tinggiBadanIbu !== undefined) {
+    const tinggiIbu = finalData.tinggiBadanIbu ? parseFloat(finalData.tinggiBadanIbu) : null;
+    
+    try {
+      const children = await prisma.balita.findMany({
+        where: { userId },
+        include: { rekamPertumbuhan: true }
+      });
+
+      for (const child of children) {
+        for (const record of child.rekamPertumbuhan) {
+          try {
+            const diffTime = Math.abs(new Date(record.tanggalCatat) - new Date(child.tanggalLahir));
+            const ageDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const ageMonths = ageDays / 30.44;
+
+            const prediction = await aiService.predictStunting({
+              umurBulan: ageMonths,
+              jenisKelamin: child.jenisKelamin,
+              tinggiBadan: record.tinggiBadan,
+              beratBadan: record.beratBadan,
+              tinggiBadanIbu: tinggiIbu,
+            });
+
+            await prisma.rekamPertumbuhan.update({
+              where: { id: record.id },
+              data: {
+                risikoStuntingMl: prediction.prediction_label,
+                mlConfidence: prediction.confidence * 100,
+              }
+            });
+          } catch (error) {
+            console.error(`Gagal mengupdate prediksi stunting untuk rekam pertumbuhan ID ${record.id}:`, error);
+          }
+        }
+      }
+    } catch (dbError) {
+      console.error("Gagal mengambil data anak untuk update prediksi stunting:", dbError);
+    }
+  }
 
   return updatedUser;
 };

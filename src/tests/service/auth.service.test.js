@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';
 import jwt from 'jsonwebtoken';
 
 const require = createRequire(import.meta.url);
 let authService;
+const testSigningKey = randomBytes(32).toString('hex');
 
 const { prisma, bcrypt, emailService, aiService } = vi.hoisted(() => ({
   prisma: {
@@ -88,7 +90,7 @@ const loadService = () => {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  process.env.JWT_SECRET = 'auth-service-test-secret';
+  process.env.JWT_SECRET = testSigningKey;
   process.env.REQUIRE_EMAIL_VERIFICATION = 'false';
   bcrypt.hash.mockResolvedValue('hashed-new');
   bcrypt.compare.mockResolvedValue(true);
@@ -269,4 +271,3 @@ describe('authService.updateMe', () => {
     });
   });
 });
-

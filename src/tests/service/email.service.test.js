@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 let emailService;
+const testSmtpPassword = randomBytes(16).toString('hex');
 
 const { nodemailer, transporter } = vi.hoisted(() => ({
   transporter: {
@@ -34,7 +36,7 @@ beforeEach(() => {
   process.env.SMTP_PORT = '587';
   process.env.SMTP_SECURE = 'false';
   process.env.SMTP_USER = 'smtp-user@example.com';
-  process.env.SMTP_PASS = 'secret';
+  process.env.SMTP_PASS = testSmtpPassword;
   process.env.SMTP_FROM = 'no-reply@example.com';
   process.env.FRONTEND_URL = 'https://app.example.com';
   nodemailer.createTransport.mockReturnValue(transporter);
@@ -85,4 +87,3 @@ describe('emailService.sendPasswordResetEmail', () => {
     ).rejects.toThrow('Gagal mengirim email');
   });
 });
-

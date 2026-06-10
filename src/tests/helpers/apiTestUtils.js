@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import jwt from 'jsonwebtoken';
@@ -5,7 +6,7 @@ import request from 'supertest';
 import { vi } from 'vitest';
 
 const require = createRequire(import.meta.url);
-const JWT_SECRET = 'vitest-secret';
+const testSigningKey = randomBytes(32).toString('hex');
 
 export const testUsers = {
   user: {
@@ -139,10 +140,10 @@ export const createServiceMocks = () =>
   );
 
 export const createAccessToken = (user = testUsers.user) =>
-  jwt.sign({ sub: user.id, type: 'access' }, JWT_SECRET, { expiresIn: '1h' });
+  jwt.sign({ sub: user.id, type: 'access' }, testSigningKey, { expiresIn: '1h' });
 
 export const createRefreshToken = (user = testUsers.user) =>
-  jwt.sign({ sub: user.id, type: 'refresh' }, JWT_SECRET, { expiresIn: '7d' });
+  jwt.sign({ sub: user.id, type: 'refresh' }, testSigningKey, { expiresIn: '7d' });
 
 export const bearer = (token) => `Bearer ${token}`;
 
@@ -175,7 +176,7 @@ export const createApiTestContext = ({ users = {}, services = createServiceMocks
   clearBackendCache();
 
   process.env.NODE_ENV = 'test';
-  process.env.JWT_SECRET = JWT_SECRET;
+  process.env.JWT_SECRET = testSigningKey;
 
   const usersById = {
     [testUsers.user.id]: testUsers.user,
@@ -221,4 +222,3 @@ export const createApiTestContext = ({ users = {}, services = createServiceMocks
     inactiveToken: createAccessToken(testUsers.inactive),
   };
 };
-

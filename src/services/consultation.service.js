@@ -4,7 +4,8 @@ const midtransClient = require('midtrans-client');
 
 const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || '';
 const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY || '';
-const MIDTRANS_IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const MIDTRANS_IS_PRODUCTION =
+  String(process.env.MIDTRANS_IS_PRODUCTION).toLowerCase() === 'true';
 const MIDTRANS_READY = Boolean(MIDTRANS_SERVER_KEY && MIDTRANS_CLIENT_KEY);
 
 let snap = null;

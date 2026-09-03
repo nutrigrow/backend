@@ -11,7 +11,7 @@ const SHIPPING_COSTS = {
 
 const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || '';
 const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY || '';
-const MIDTRANS_IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const MIDTRANS_IS_PRODUCTION = process.env.MIDTRANS_IS_PRODUCTION === 'true';
 const MIDTRANS_READY = Boolean(MIDTRANS_SERVER_KEY && MIDTRANS_CLIENT_KEY);
 
 const ORDER_INCLUDE = {

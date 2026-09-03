@@ -8,8 +8,7 @@
     "predev": "npm run prisma:generate",
     "dev": "nodemon src/server.js",
     "prisma:generate": "DIRECT_URL=${DIRECT_URL:-postgresql://dummy:dummy@localhost:5432/dummy} prisma generate --schema=prisma/schema.prisma",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "node src/tests/smoke.test.js"
   },
   "repository": {
     "type": "git",
@@ -43,8 +42,6 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.14",
-    "prisma": "^7.8.0",
-    "supertest": "^7.2.2",
-    "vitest": "^4.1.7"
+    "prisma": "^7.8.0"
   }
 }

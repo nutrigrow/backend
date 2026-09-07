@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────
 # TAHAP 1: BUILD
 # ─────────────────────────────────────────────────────
-FROM node:20-bookworm-slim AS builder
+FROM node:26-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -19,7 +19,7 @@ RUN npm prune --omit=dev
 # ─────────────────────────────────────────────────────
 # TAHAP 2: PRODUCTION
 # ─────────────────────────────────────────────────────
-FROM node:20-bookworm-slim AS production
+FROM node:26-bookworm-slim AS production
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends dumb-init \

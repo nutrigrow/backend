@@ -27,4 +27,7 @@ router.get('/notifications', healthLogController.getNotifications);
 // GET /api/health-logs — get all logs (newest first)
 router.get('/', healthLogController.getAllLogs);
 
+// DELETE /api/health-logs/:id — delete one log entry owned by the logged-in user
+router.delete('/:id', healthLogController.deleteLog);
+
 module.exports = router;

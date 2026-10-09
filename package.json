@@ -7,7 +7,7 @@
     "start": "node src/server.js",
     "predev": "npm run prisma:generate",
     "dev": "nodemon src/server.js",
-    "prisma:generate": "DIRECT_URL=${DIRECT_URL:-postgresql://dummy:dummy@localhost:5432/dummy} prisma generate --schema=prisma/schema.prisma",
+    "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
     "test": "node src/tests/smoke.test.js"
   },
   "repository": {

@@ -1,6 +1,7 @@
 const catchAsync = require("../utils/catchAsync");
 const { success, created } = require("../utils/responseHelper");
 const consultationService = require("../services/consultation.service");
+const childrenService = require("../services/children.service");
 
 /**
  * @desc    Get availability for a specialist
@@ -77,7 +78,7 @@ const cancel = catchAsync(async (req, res) => {
 });
 
 /**
- * @desc    Confirm payment — update konsultasi to CONFIRMED after Midtrans success
+ * @desc    Confirm payment
  * @route   PATCH /api/consultations/:id/confirm-payment
  * @access  Private
  */
@@ -90,6 +91,49 @@ const confirmPayment = catchAsync(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Get consultation user summary (for nutritionist)
+ * @route   GET /api/v1/nutritionist/consultations/:consultationId/user-summary
+ * @access  Private (AHLI_GIZI only)
+ */
+const getConsultationUserSummary = catchAsync(async (req, res) => {
+  const result = await consultationService.getConsultationUserSummary(req.params.consultationId, req.user.id);
+  success(res, {
+    message: "User summary berhasil diambil",
+    data: result,
+  });
+});
+
+/**
+ * @desc    Create follow-up note (for nutritionist)
+ * @route   POST /api/v1/nutritionist/consultations/:consultationId/follow-up
+ * @access  Private (AHLI_GIZI only)
+ */
+const createFollowUp = catchAsync(async (req, res) => {
+  const result = await consultationService.createFollowUp(req.params.consultationId, req.user.id, req.body);
+  created(res, {
+    message: "Catatan follow-up berhasil disimpan dan dikirimkan ke pengguna.",
+    data: {
+      follow_up_id: String(result.id),
+      consultation_id: req.params.consultationId,
+      created_at: result.createdAt,
+    },
+  });
+});
+
+/**
+ * @desc    Get follow-up result (for user/pasien)
+ * @route   GET /api/v1/user/consultations/:consultationId/follow-up
+ * @access  Private (USER only)
+ */
+const getUserFollowUp = catchAsync(async (req, res) => {
+  const result = await consultationService.getUserFollowUp(req.params.consultationId, req.user.id);
+  success(res, {
+    message: "Catatan follow-up berhasil diambil",
+    data: result,
+  });
+});
+
 module.exports = {
   getAvailability,
   createBooking,
@@ -97,4 +141,7 @@ module.exports = {
   reschedule,
   cancel,
   confirmPayment,
+  getConsultationUserSummary,
+  createFollowUp,
+  getUserFollowUp,
 };

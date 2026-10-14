@@ -1,6 +1,7 @@
 const prisma = require("../config/database");
 const ApiError = require("../utils/ApiError");
 const midtransClient = require('midtrans-client');
+const childrenService = require("./children.service");
 
 const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || '';
 const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY || '';
@@ -88,14 +89,12 @@ const getAvailability = async (specialistId, dateStr) => {
   const now = new Date();
   const todayStr = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Jakarta'
-  }).format(now); // YYYY-MM-DD format
+  }).format(now);
 
   return waktu.map(t => {
     let isAvailable = !bookedTimes.includes(t);
 
-    // If date is today, check if time has passed
     if (isAvailable && dateStr === todayStr) {
-      // Create date object for the slot in WIB (+07:00)
       const slotTime = new Date(`${dateStr}T${t}:00+07:00`);
       if (slotTime.getTime() <= now.getTime()) {
         isAvailable = false;
@@ -226,7 +225,8 @@ const getMyConsultations = async (userId) => {
       ahliGizi: {
         include: { user: { select: { nama: true, avatarUrl: true } } }
       },
-      transaksi: true
+      transaksi: true,
+      followUp: true
     },
     orderBy: { jadwalSesi: 'desc' }
   });
@@ -302,11 +302,137 @@ const confirmPayment = async (konsultasiId, userId) => {
   });
 };
 
+// ============================================
+// NUTRITIONIST-ENDPOINT FUNCTIONS (PPL II)
+// ============================================
+
+/**
+ * Get consultation user summary — called by nutritionist before session.
+ */
+const getConsultationUserSummary = async (consultationId, userId) => {
+  const konsultasi = await prisma.konsultasi.findUnique({
+    where: { id: Number(consultationId) },
+    include: {
+      user: { select: { id: true, nama: true } },
+      ahliGizi: { include: { user: { select: { id: true, nama: true } } } },
+    },
+  });
+
+  if (!konsultasi) throw ApiError.notFound("Konsultasi tidak ditemukan");
+  if (konsultasi.ahliGizi.user.id !== userId) throw ApiError.forbidden("Anda tidak memiliki akses ke konsultasi ini");
+
+  const balita = await prisma.balita.findFirst({
+    where: { userId: konsultasi.userId },
+    orderBy: { createdAt: "asc" },
+    take: 1,
+    select: { id: true, namaDepan: true, namaAkhir: true, tanggalLahir: true, jenisKelamin: true },
+  });
+
+  if (!balita) throw ApiError.notFound("Data anak tidak ditemukan");
+
+  const summary = await childrenService.getGrowthSummary(balita.id, konsultasi.userId);
+
+  return {
+    consultation_id: String(konsultasi.id),
+    child_name: summary.child_info.name,
+    child_info: {
+      child_id: summary.child_info.child_id,
+      name: summary.child_info.name,
+      age_months: summary.child_info.age_months,
+      gender: summary.child_info.gender,
+      latest_anthropometry: summary.child_info.latest_anthropometry,
+    },
+    ai_assessment: summary.ai_assessment,
+    recent_health_logs: summary.recent_health_logs,
+  };
+};
+
+/**
+ * Create follow-up note — called by nutritionist after session.
+ */
+const createFollowUp = async (consultationId, userId, body) => {
+  const { nutrition_status_evaluation, dietary_recommendations, next_evaluation_date, special_notes } = body;
+
+  const konsultasi = await prisma.konsultasi.findUnique({
+    where: { id: Number(consultationId) },
+    include: {
+      ahliGizi: { include: { user: { select: { id: true, nama: true } } } },
+    },
+  });
+
+  if (!konsultasi) throw ApiError.notFound("Konsultasi tidak ditemukan");
+  if (konsultasi.ahliGizi.user.id !== userId) throw ApiError.forbidden("Anda tidak memiliki akses ke konsultasi ini");
+  if (konsultasi.status !== "DONE") throw ApiError.badRequest("Follow-up hanya dapat dibuat setelah sesi konsultasi selesai");
+
+  if (!nutrition_status_evaluation || !dietary_recommendations || !next_evaluation_date) {
+    throw ApiError.badRequest("Field nutrition_status_evaluation, dietary_recommendations, dan next_evaluation_date wajib diisi");
+  }
+
+  const followUp = await prisma.followUp.upsert({
+    where: { konsultasiId: Number(consultationId) },
+    update: {
+      nutritionStatusEvaluation: nutrition_status_evaluation,
+      dietaryRecommendations: dietary_recommendations,
+      nextEvaluationDate: new Date(next_evaluation_date),
+      specialNotes: special_notes || null,
+    },
+    create: {
+      konsultasiId: Number(consultationId),
+      nutritionStatusEvaluation: nutrition_status_evaluation,
+      dietaryRecommendations: dietary_recommendations,
+      nextEvaluationDate: new Date(next_evaluation_date),
+      specialNotes: special_notes || null,
+    },
+  });
+
+  return followUp;
+};
+
+/**
+ * Get follow-up result — called by user/pasien.
+ */
+const getUserFollowUp = async (consultationId, userId) => {
+  const konsultasi = await prisma.konsultasi.findUnique({
+    where: { id: Number(consultationId) },
+    include: {
+      followUp: true,
+      ahliGizi: { select: { gelar: true, user: { select: { nama: true } } } },
+    },
+  });
+
+  if (!konsultasi) throw ApiError.notFound("Konsultasi tidak ditemukan");
+  if (konsultasi.userId !== userId) throw ApiError.forbidden("Anda tidak memiliki akses ke konsultasi ini");
+
+  if (!konsultasi.followUp) {
+    throw ApiError.notFound("Belum ada catatan follow-up untuk konsultasi ini");
+  }
+
+  const nutritionistName = konsultasi.ahliGizi.gelar
+    ? `${konsultasi.ahliGizi.gelar} ${konsultasi.ahliGizi.user.nama}`
+    : konsultasi.ahliGizi.user.nama;
+
+  return {
+    follow_up_id: String(konsultasi.followUp.id),
+    consultation_id: String(konsultasi.id),
+    nutritionist_name: nutritionistName,
+    consultation_date: konsultasi.jadwalSesi.toISOString().slice(0, 10),
+    evaluation_summary: {
+      status_label: konsultasi.followUp.nutritionStatusEvaluation,
+      recommendations: konsultasi.followUp.dietaryRecommendations,
+      next_evaluation_date: konsultasi.followUp.nextEvaluationDate,
+      special_notes: konsultasi.followUp.specialNotes,
+    },
+  };
+};
+
 module.exports = {
   getAvailability,
   createBooking,
   getMyConsultations,
   reschedule,
   cancel,
-  confirmPayment
+  confirmPayment,
+  getConsultationUserSummary,
+  createFollowUp,
+  getUserFollowUp,
 };

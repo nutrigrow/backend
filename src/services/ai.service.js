@@ -64,9 +64,21 @@ const predictStunting = async (data) => {
     const confidence = prediction === 1 ? probStunting : probNormal;
     const isMomHeightFallback = !data.tinggiBadanIbu;
 
+    let riskLevel = "NORMAL";
+    let riskLabel = "Pola Pertumbuhan Optimal";
+
+    if (probStunting >= 0.7) {
+      riskLevel = "HIGH_ALERT";
+      riskLabel = "Indikator Melambat Signifikan";
+    } else if (probStunting >= 0.4) {
+      riskLevel = "WARNING";
+      riskLabel = "Keyword Warning Terdeteksi";
+    }
+
     return {
       prediction: prediction, // 0 for Normal, 1 for Stunting
-      prediction_label: prediction === 1 ? "Stunting" : "Normal",
+      risk_level: riskLevel, // NORMAL, WARNING, HIGH_ALERT
+      risk_label: riskLabel, // Pola Pertumbuhan Optimal / Keyword Warning Terdeteksi / Indikator Melambat Signifikan
       confidence: Number(confidence),
       momHeightFallbackUsed: isMomHeightFallback,
       probabilities: {

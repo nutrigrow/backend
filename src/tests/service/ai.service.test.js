@@ -73,7 +73,8 @@ describe('aiService.predictStunting', () => {
 
     expect(result).toMatchObject({
       prediction: 1,
-      prediction_label: 'Stunting',
+      risk_level: 'HIGH_ALERT',
+      risk_label: 'Indikator Melambat Signifikan',
       confidence: expect.closeTo(0.9),
       momHeightFallbackUsed: true,
       probabilities: {
@@ -97,7 +98,43 @@ describe('aiService.predictStunting', () => {
     });
   });
 
-  it('wraps model execution failures with a prediction error', async () => {
+  it('returns NORMAL risk for low stunting probability', async () => {
+    session.run.mockResolvedValue({
+      label: { data: [0] },
+      probabilities: { data: new Float32Array([0.85, 0.15]) },
+    });
+
+    const result = await aiService.predictStunting({
+      umurBulan: 18,
+      jenisKelamin: 'LAKI_LAKI',
+      tinggiBadan: 78,
+      beratBadan: 9,
+      tinggiBadanIbu: 158,
+    });
+
+    expect(result.risk_level).toBe('NORMAL');
+    expect(result.risk_label).toBe('Pola Pertumbuhan Optimal');
+  });
+
+  it('returns WARNING risk for moderate stunting probability', async () => {
+    session.run.mockResolvedValue({
+      label: { data: [1] },
+      probabilities: { data: new Float32Array([0.48, 0.52]) },
+    });
+
+    const result = await aiService.predictStunting({
+      umurBulan: 18,
+      jenisKelamin: 'LAKI_LAKI',
+      tinggiBadan: 78,
+      beratBadan: 9,
+      tinggiBadanIbu: 158,
+    });
+
+    expect(result.risk_level).toBe('WARNING');
+    expect(result.risk_label).toBe('Keyword Warning Terdeteksi');
+  });
+
+  it('throws an error when model execution fails', async () => {
     session.run.mockRejectedValue(new Error('model failed'));
 
     await expect(

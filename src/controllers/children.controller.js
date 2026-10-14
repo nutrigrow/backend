@@ -130,6 +130,15 @@ const deleteChild = catchAsync(async (req, res) => {
   success(res, { message: 'Profil anak berhasil dihapus' });
 });
 
+/**
+ * @desc  Get growth summary with keyword warnings (Info Lebih Lanjut module)
+ * @route GET /api/children/:id/growth/summary
+ */
+const getGrowthSummary = catchAsync(async (req, res) => {
+  const data = await childrenService.getGrowthSummary(parseInt(req.params.id), req.user.id);
+  success(res, { message: 'Berhasil mengambil ringkasan pertumbuhan', data });
+});
+
 module.exports = {
   getAllChildren,
   createChild,
@@ -143,4 +152,5 @@ module.exports = {
   getLatestGrowth,
   getBmiChart,
   getPercentile,
+  getGrowthSummary,
 };

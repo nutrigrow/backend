@@ -114,13 +114,10 @@ const getApproximatedWhoRow = (day, isLaki) => {
 
 /**
  * Find which percentile bracket a measurement falls into.
- * Returns the label of the highest bracket whose reference value <= measurement,
- * or a boundary string if below/above all brackets.
  */
 const findPercentileBracket = (value, whoRow, cols) => {
   if (!whoRow) return null;
 
-  // Walk from highest to lowest to find the highest bracket the value meets/exceeds
   for (let i = cols.length - 1; i >= 0; i--) {
     const ref = whoRow[cols[i]];
     if (ref !== null && ref !== undefined && value >= ref) {
@@ -151,6 +148,84 @@ const assertOwnership = async (balitaId, userId) => {
   if (balita.userId !== userId)
     throw ApiError.forbidden("Akses tidak diizinkan");
   return balita;
+};
+
+// ============================================
+// KEYWORD WARNING GENERATOR
+// ============================================
+
+const WEIGHT_DROP_THRESHOLD = 0.2;
+const HEIGHT_STALL_THRESHOLD_CM = 0.5;
+const ZSCORE_WARNING_LOWER = -1.0;
+const ZSCORE_WARNING_UPPER = -2.0;
+
+const generateKeywordWarnings = async (records, balita) => {
+  if (!records || records.length === 0) return [];
+
+  const warnings = new Set();
+  const isLaki = balita.jenisKelamin === "LAKI_LAKI";
+
+  const sortedRecords = [...records].sort(
+    (a, b) => new Date(a.tanggalCatat) - new Date(b.tanggalCatat)
+  );
+
+  const recentRecords = sortedRecords.slice(-6);
+
+  for (const rec of recentRecords) {
+    const ageDays = calcAgeDays(balita.tanggalLahir, rec.tanggalCatat);
+    let whoRow;
+    if (isLaki) {
+      whoRow = await prisma.pertumbuhanLakiLaki.findUnique({ where: { day: ageDays } });
+    } else {
+      whoRow = await prisma.pertumbuhanPerempuan.findUnique({ where: { day: ageDays } });
+    }
+    if (!whoRow || whoRow.p50_height === null) {
+      whoRow = getApproximatedWhoRow(ageDays, isLaki);
+    }
+
+    if (rec.zScoreTbU !== null && rec.zScoreTbU < 0 && rec.zScoreTbU >= ZSCORE_WARNING_LOWER) {
+      warnings.add("Evaluasi Ambang Pertambahan Tinggi");
+    }
+    if (rec.zScoreBbU !== null && rec.zScoreBbU < 0 && rec.zScoreBbU >= ZSCORE_WARNING_LOWER) {
+      warnings.add("Perhatian Asupan HPK");
+    }
+  }
+
+  if (recentRecords.length >= 2) {
+    const lastTwo = recentRecords.slice(-2);
+    const weightDiff = lastTwo[1].beratBadan - lastTwo[0].beratBadan;
+    if (weightDiff <= -WEIGHT_DROP_THRESHOLD) {
+      warnings.add("Fluktuasi Berat Badan");
+    }
+  }
+
+  if (recentRecords.length >= 2) {
+    const lastTwo = recentRecords.slice(-2);
+    const heightDiff = lastTwo[1].tinggiBadan - lastTwo[0].tinggiBadan;
+    if (heightDiff < HEIGHT_STALL_THRESHOLD_CM) {
+      warnings.add("Pola Pertumbuhan Melambat");
+    }
+  }
+
+  return Array.from(warnings);
+};
+
+const mapRiskToLabel = (riskLevel) => {
+  const map = {
+    NORMAL: "Pola Pertumbuhan Optimal",
+    WARNING: "Keyword Warning Terdeteksi",
+    HIGH_ALERT: "Indikator Melambat Signifikan",
+  };
+  return map[riskLevel] ?? "Pola Pertumbuhan Optimal";
+};
+
+const mapRiskToColor = (riskLevel) => {
+  const map = {
+    NORMAL: "green",
+    WARNING: "yellow",
+    HIGH_ALERT: "orange",
+  };
+  return map[riskLevel] ?? "green";
 };
 
 // ============================================
@@ -219,6 +294,7 @@ const getChildById = async (balitaId, userId) => {
   const { userId: _uid, ...result } = balita;
   return result;
 };
+
 const updateChild = async (balitaId, userId, body) => {
   await assertOwnership(balitaId, userId);
   const { namaDepan, namaAkhir, tanggalLahir, jenisKelamin } = body;
@@ -274,12 +350,8 @@ const createGrowthRecord = async (balitaId, userId, body) => {
     throw ApiError.badRequest("Tanggal pengukuran tidak boleh di masa depan");
   }
 
-  // Check if growth record on the same date already exists for this child
   const existingRecord = await prisma.rekamPertumbuhan.findFirst({
-    where: {
-      balitaId,
-      tanggalCatat: date
-    }
+    where: { balitaId, tanggalCatat: date }
   });
   if (existingRecord) {
     throw ApiError.badRequest("Pertumbuhan anak pada tanggal ini sudah tercatat");
@@ -288,44 +360,40 @@ const createGrowthRecord = async (balitaId, userId, body) => {
   const tb = parseFloat(tinggiBadan);
   const bb = parseFloat(beratBadan);
 
-  // 1. Calculate age for AI
   const ageDays = calcAgeDays(balita.tanggalLahir, date);
   const ageMonths = ageDays / 30.44;
 
-  // 2. Fetch User Profile for Mother's Height
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { tinggiBadanIbu: true }
   });
 
-  // 2. Run AI Prediction (Async but we want to store it)
-  let risikoStuntingMl = null;
-  let mlConfidence = null;
-
+  let aiResult = null;
   try {
-    const prediction = await aiService.predictStunting({
+    aiResult = await aiService.predictStunting({
       umurBulan: ageMonths,
       jenisKelamin: balita.jenisKelamin,
       tinggiBadan: tb,
       beratBadan: bb,
       tinggiBadanIbu: user?.tinggiBadanIbu,
     });
-    risikoStuntingMl = prediction.prediction_label;
-    mlConfidence = prediction.confidence * 100;
   } catch (error) {
     console.error("AI Prediction failed:", error);
   }
 
-  return prisma.rekamPertumbuhan.create({
+  const record = await prisma.rekamPertumbuhan.create({
     data: {
       balitaId,
       tinggiBadan: tb,
       beratBadan: bb,
       tanggalCatat: date,
-      risikoStuntingMl,
-      mlConfidence,
+      risikoStuntingMl: aiResult?.risk_label ?? null,
+      mlConfidence: aiResult ? aiResult.confidence * 100 : null,
+      statusGizi: aiResult?.risk_level === "HIGH_ALERT" ? "STUNTED" : aiResult?.risk_level === "WARNING" ? "WASTED" : "NORMAL",
     },
   });
+
+  return record;
 };
 
 const updateGrowthRecord = async (recordId, userId, body) => {
@@ -348,7 +416,6 @@ const updateGrowthRecord = async (recordId, userId, body) => {
     throw ApiError.badRequest("Tanggal pengukuran tidak boleh di masa depan");
   }
 
-  // Check if growth record on the same date already exists (excluding current record)
   const existingRecord = await prisma.rekamPertumbuhan.findFirst({
     where: {
       balitaId: record.balitaId,
@@ -363,9 +430,9 @@ const updateGrowthRecord = async (recordId, userId, body) => {
   const tb = parseFloat(tinggiBadan);
   const bb = parseFloat(beratBadan);
 
-  // Recalculate AI Prediction for the updated data
-  let risikoStuntingMl = record.risikoStuntingMl;
-  let mlConfidence = record.mlConfidence;
+  let aiResult = record.risikoStuntingMl;
+  let confidence = record.mlConfidence;
+  let statusGizi = record.statusGizi;
 
   try {
     const ageDays = calcAgeDays(record.balita.tanggalLahir, date);
@@ -376,8 +443,9 @@ const updateGrowthRecord = async (recordId, userId, body) => {
       beratBadan: bb,
       tinggiBadanIbu: record.balita.user?.tinggiBadanIbu,
     });
-    risikoStuntingMl = prediction.prediction_label;
-    mlConfidence = prediction.confidence * 100;
+    aiResult = prediction.risk_label;
+    confidence = prediction.confidence * 100;
+    statusGizi = prediction.risk_level === "HIGH_ALERT" ? "STUNTED" : prediction.risk_level === "WARNING" ? "WASTED" : "NORMAL";
   } catch (error) {
     console.error("AI Prediction failed during update:", error);
   }
@@ -388,8 +456,9 @@ const updateGrowthRecord = async (recordId, userId, body) => {
       tinggiBadan: tb,
       beratBadan: bb,
       tanggalCatat: date,
-      risikoStuntingMl,
-      mlConfidence,
+      risikoStuntingMl: aiResult,
+      mlConfidence: confidence,
+      statusGizi,
     },
   });
 };
@@ -423,21 +492,108 @@ const getLatestGrowth = async (balitaId, userId) => {
       tinggiBadan: true,
       beratBadan: true,
       tanggalCatat: true,
+      risikoStuntingMl: true,
+      mlConfidence: true,
+      statusGizi: true,
     },
   });
 
   if (!latest) {
-    return {
-      message: "Belum ada data pertumbuhan anak. Silakan input data pertama!",
-      data: null,
-    };
+    return { message: "Belum ada data pertumbuhan anak. Silakan input data pertama!", data: null };
   }
 
   return { message: "Berhasil", data: latest };
 };
 
 // ============================================
-// D. BMI CHART VS WHO
+// D. GROWTH SUMMARY — INFO LEBIH LANJUT MODULE
+// ============================================
+
+const getGrowthSummary = async (balitaId, userId) => {
+  const balita = await assertOwnership(balitaId, userId);
+
+  const records = await prisma.rekamPertumbuhan.findMany({
+    where: { balitaId },
+    orderBy: { tanggalCatat: "asc" },
+    select: {
+      id: true,
+      tinggiBadan: true,
+      beratBadan: true,
+      tanggalCatat: true,
+      zScoreTbU: true,
+      zScoreBbU: true,
+      zScoreBbTb: true,
+      statusGizi: true,
+      risikoStuntingMl: true,
+      mlConfidence: true,
+    },
+  });
+
+  const latestRecord = records.length > 0 ? records[records.length - 1] : null;
+  const ageMonths = latestRecord
+    ? calcAgeDays(balita.tanggalLahir, latestRecord.tanggalCatat) / 30.44
+    : null;
+
+  const keywordWarnings = await generateKeywordWarnings(records, balita);
+
+  const riskLevel = latestRecord?.risikoStuntingMl === "Indikator Melambat Signifikan"
+    ? "HIGH_ALERT"
+    : latestRecord?.risikoStuntingMl === "Keyword Warning Terdeteksi"
+    ? "WARNING"
+    : "NORMAL";
+
+  const recentLogs = await prisma.logKesehatan.findMany({
+    where: { userId, tanggalCatat: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+    orderBy: { tanggalCatat: "desc" },
+    take: 7,
+    select: {
+      jumlahGelasAir: true,
+      minumSuplemen: true,
+      tanggalCatat: true,
+    },
+  });
+
+  const avgFluid = recentLogs.length > 0
+    ? Math.round(recentLogs.reduce((sum, l) => sum + (l.jumlahGelasAir ?? 0), 0) / recentLogs.length)
+    : null;
+
+  const mpasiCompliance = recentLogs.length > 0
+    ? recentLogs.every(l => l.minumSuplemen === true)
+      ? "high"
+      : recentLogs.some(l => l.minumSuplemen === true)
+        ? "moderate"
+        : "low"
+    : null;
+
+  return {
+    child_info: {
+      child_id: String(balita.id),
+      name: `${balita.namaDepan} ${balita.namaAkhir || ""}`.trim(),
+      age_months: ageMonths ? Math.round(ageMonths * 10) / 10 : null,
+      gender: balita.jenisKelamin,
+      latest_anthropometry: latestRecord ? {
+        height_cm: latestRecord.tinggiBadan,
+        weight_kg: latestRecord.beratBadan,
+        measured_at: latestRecord.tanggalCatat,
+      } : null,
+    },
+    ai_assessment: {
+      risk_level: riskLevel,
+      risk_label: mapRiskToLabel(riskLevel),
+      z_score_height_for_age: latestRecord?.zScoreTbU ?? null,
+      z_score_weight_for_age: latestRecord?.zScoreBbU ?? null,
+      keyword_warnings: keywordWarnings,
+    },
+    recent_health_logs: {
+      avg_daily_fluid_glasses: avgFluid,
+      mpasi_compliance: mpasiCompliance,
+    },
+    disclaimer: "AI adalah alat skrining awal dan bukan pengganti diagnosis medis profesional. Konsultasikan kondisi tumbuh kembang anak dengan ahli gizi melalui Tele-Nutritionist.",
+  };
+};
+
+// ============================================
+// E. BMI CHART VS WHO
 // ============================================
 
 const getBmiChart = async (balitaId, userId) => {
@@ -451,7 +607,6 @@ const getBmiChart = async (balitaId, userId) => {
 
   if (!histories.length) return [];
 
-  // Calculate per-record BMI
   const childData = histories.map((rec) => {
     const usiaHari = calcAgeDays(balita.tanggalLahir, rec.tanggalCatat);
     const bmiAnak = rec.beratBadan / Math.pow(rec.tinggiBadan / 100, 2);
@@ -464,15 +619,14 @@ const getBmiChart = async (balitaId, userId) => {
 
   const maxUsiaHari = Math.max(...childData.map((d) => d.usiaHari));
 
-  // Fetch WHO BMI standards up to max age
-  const whoCols = balita.jenisKelamin === "LAKI_LAKI" 
+  const whoCols = balita.jenisKelamin === "LAKI_LAKI"
     ? { median: "bmi_boy", sd2neg: "sd2neg_boy", sd2pos: "sd2pos_boy" }
     : { median: "bmi_girl", sd2neg: "sd2neg_girl", sd2pos: "sd2pos_girl" };
 
   const whoData = await prisma.bmi.findMany({
     where: { day: { lte: maxUsiaHari } },
-    select: { 
-      day: true, 
+    select: {
+      day: true,
       [whoCols.median]: true,
       [whoCols.sd2neg]: true,
       [whoCols.sd2pos]: true,
@@ -480,7 +634,6 @@ const getBmiChart = async (balitaId, userId) => {
     orderBy: { day: "asc" },
   });
 
-  // Build a lookup map: day -> WHO BMI data
   const whoMap = {};
   whoData.forEach((row) => {
     whoMap[row.day] = {
@@ -501,7 +654,7 @@ const getBmiChart = async (balitaId, userId) => {
 };
 
 // ============================================
-// E. GROWTH TRACKER PERCENTILE
+// F. GROWTH TRACKER PERCENTILE
 // ============================================
 
 const getPercentile = async (balitaId, userId) => {
@@ -530,29 +683,17 @@ const getPercentile = async (balitaId, userId) => {
 
       let whoRow;
       if (isLaki) {
-        whoRow = await prisma.pertumbuhanLakiLaki.findUnique({
-          where: { day: usiaHari },
-        });
+        whoRow = await prisma.pertumbuhanLakiLaki.findUnique({ where: { day: usiaHari } });
       } else {
-        whoRow = await prisma.pertumbuhanPerempuan.findUnique({
-          where: { day: usiaHari },
-        });
+        whoRow = await prisma.pertumbuhanPerempuan.findUnique({ where: { day: usiaHari } });
       }
 
       if (!whoRow || whoRow.p50_height === null || whoRow.p50_weight === null) {
         whoRow = getApproximatedWhoRow(usiaHari, isLaki);
       }
 
-      const persentilTinggi = findPercentileBracket(
-        rec.tinggiBadan,
-        whoRow,
-        HEIGHT_PERCENTILE_COLS,
-      );
-      const persentilBerat = findPercentileBracket(
-        rec.beratBadan,
-        whoRow,
-        WEIGHT_PERCENTILE_COLS,
-      );
+      const persentilTinggi = findPercentileBracket(rec.tinggiBadan, whoRow, HEIGHT_PERCENTILE_COLS);
+      const persentilBerat = findPercentileBracket(rec.beratBadan, whoRow, WEIGHT_PERCENTILE_COLS);
 
       return {
         id: rec.id,
@@ -586,4 +727,5 @@ module.exports = {
   getLatestGrowth,
   getBmiChart,
   getPercentile,
+  getGrowthSummary,
 };

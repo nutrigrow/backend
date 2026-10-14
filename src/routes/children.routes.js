@@ -35,6 +35,7 @@ router.get('/:id/growth/bmi-chart', childrenController.getBmiChart);
 // E. Growth Percentile
 // ============================================
 router.get('/:id/growth/percentile', childrenController.getPercentile);
+router.get('/:id/growth/summary', childrenController.getGrowthSummary);
 router.put('/growth/:recordId', childrenController.updateGrowthRecord);
 router.delete('/growth/:recordId', childrenController.deleteGrowthRecord);
 

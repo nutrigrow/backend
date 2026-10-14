@@ -90,7 +90,8 @@ describe('childrenService.createGrowthRecord', () => {
     prisma.balita.findUnique.mockResolvedValue(child);
     prisma.user.findUnique.mockResolvedValue({ tinggiBadanIbu: 158 });
     aiService.predictStunting.mockResolvedValue({
-      prediction_label: 'Normal',
+      risk_label: 'Pola Pertumbuhan Optimal',
+      risk_level: 'NORMAL',
       confidence: 0.92,
     });
     prisma.rekamPertumbuhan.create.mockResolvedValue(savedRecord);
@@ -116,7 +117,7 @@ describe('childrenService.createGrowthRecord', () => {
         balitaId: child.id,
         tinggiBadan: 75,
         beratBadan: 9.5,
-        risikoStuntingMl: 'Normal',
+        risikoStuntingMl: 'Pola Pertumbuhan Optimal',
         mlConfidence: 92,
       }),
     });
@@ -169,7 +170,8 @@ describe('childrenService.createGrowthRecord', () => {
     prisma.balita.findUnique.mockResolvedValue(child);
     prisma.user.findUnique.mockResolvedValue({ tinggiBadanIbu: 158 });
     aiService.predictStunting.mockResolvedValue({
-      prediction_label: 'Normal',
+      risk_label: 'Pola Pertumbuhan Optimal',
+      risk_level: 'NORMAL',
       confidence: 0.92,
     });
     prisma.rekamPertumbuhan.findFirst.mockResolvedValue(null);

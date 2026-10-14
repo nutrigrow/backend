@@ -192,11 +192,26 @@ model Konsultasi {
   ahliGizi          ProfilAhliGizi   @relation(fields: [ahliGiziId], references: [id])
   transaksi         Transaksi?       @relation(fields: [transaksiId], references: [id])
   user              User             @relation("PasienKonsultasi", fields: [userId], references: [id], onDelete: Cascade)
+  followUp          FollowUp?
 
   @@index([userId])
   @@index([ahliGiziId])
   @@index([jadwalSesi])
   @@map("konsultasi")
+}
+
+model FollowUp {
+  id                          Int            @id @default(autoincrement())
+  konsultasiId                Int            @unique @map("konsultasi_id")
+  nutritionStatusEvaluation   String         @map("nutrition_status_evaluation")
+  dietaryRecommendations      String         @map("dietary_recommendations")
+  nextEvaluationDate          DateTime       @map("next_evaluation_date") @db.Date
+  specialNotes                String?        @map("special_notes")
+  createdAt                   DateTime       @default(now()) @map("created_at")
+  updatedAt                   DateTime       @updatedAt @map("updated_at")
+  konsultasi                  Konsultasi     @relation(fields: [konsultasiId], references: [id], onDelete: Cascade)
+
+  @@map("follow_up")
 }
 
 model ArtikelEdukasi {

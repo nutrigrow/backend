@@ -28,6 +28,9 @@ model User {
   profilAhliGizi   ProfilAhliGizi?
   refreshTokens    RefreshToken[]
   transaksi        Transaksi[]
+  poinTransaksi    PoinTransaksi[]
+  penukaranHadiah  PenukaranHadiah[]
+  riwayatBacaArtikel RiwayatBacaArtikel[]
 
   @@map("users")
 }
@@ -482,4 +485,46 @@ enum FaseKesehatan {
   REMAJA
   HAMIL
   MENYUSUI
+}
+
+model PoinTransaksi {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @map("user_id")
+  jenisAktivitas String   @map("jenis_aktivitas")
+  poin           Int
+  deskripsi      String
+  referensiId    String?  @map("referensi_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([referensiId])
+  @@map("poin_transaksi")
+}
+
+model PenukaranHadiah {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  rewardId   String   @map("reward_id")
+  namaHadiah String   @map("nama_hadiah")
+  biayaPoin  Int      @map("biaya_poin")
+  status     String   @default("SUCCESS")
+  createdAt  DateTime @default(now()) @map("created_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("penukaran_hadiah")
+}
+
+model RiwayatBacaArtikel {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  artikelId   Int      @map("artikel_id")
+  tanggalBaca DateTime @map("tanggal_baca") @db.Date
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, artikelId, tanggalBaca])
+  @@index([userId])
+  @@map("riwayat_baca_artikel")
 }

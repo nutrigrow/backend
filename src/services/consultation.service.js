@@ -219,11 +219,25 @@ const createBooking = async (userId, body) => {
  * Get user's consultations
  */
 const getMyConsultations = async (userId) => {
+  let isNutritionist = false;
+  if (prisma.user && prisma.user.findUnique) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    isNutritionist = user?.role === 'AHLI_GIZI';
+  }
+
+  const where = isNutritionist ? { ahliGizi: { userId } } : { userId };
+
   return prisma.konsultasi.findMany({
-    where: { userId },
+    where,
     include: {
       ahliGizi: {
         include: { user: { select: { nama: true, avatarUrl: true } } }
+      },
+      user: {
+        select: { id: true, nama: true, email: true, avatarUrl: true }
       },
       transaksi: true,
       followUp: true

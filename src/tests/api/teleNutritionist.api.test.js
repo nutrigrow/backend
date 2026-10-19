@@ -142,4 +142,73 @@ describe('Tele Nutritionist API', () => {
     expect(res.status).toBe(200);
     expect(ctx.services.consultation.confirmPayment).toHaveBeenCalledWith('10', 7);
   });
+
+  describe('Health Worker Follow-Up & User Summary (PPL II)', () => {
+    it('GET /api/consultations/nutritionist/consultations/:id/user-summary forbids USER role', async () => {
+      const res = await ctx.request
+        .get('/api/consultations/nutritionist/consultations/10/user-summary')
+        .set('Authorization', bearer(ctx.userToken));
+
+      expect(res.status).toBe(403);
+    });
+
+    it('GET /api/consultations/nutritionist/consultations/:id/user-summary returns summary for AHLI_GIZI', async () => {
+      ctx.services.consultation.getConsultationUserSummary.mockResolvedValue({
+        consultation_id: '10',
+        child_name: 'Budi Test',
+        ai_assessment: { risk_level: 'NORMAL', risk_label: 'Pola Pertumbuhan Optimal' },
+      });
+
+      const res = await ctx.request
+        .get('/api/consultations/nutritionist/consultations/10/user-summary')
+        .set('Authorization', bearer(ctx.ahliGiziToken));
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.child_name).toBe('Budi Test');
+      expect(ctx.services.consultation.getConsultationUserSummary).toHaveBeenCalledWith('10', 15);
+    });
+
+    it('POST /api/consultations/nutritionist/consultations/:id/follow-up creates follow-up for AHLI_GIZI', async () => {
+      ctx.services.consultation.createFollowUp.mockResolvedValue({
+        id: 99,
+        createdAt: new Date(),
+      });
+
+      const payload = {
+        nutrition_status_evaluation: 'Status gizi baik',
+        dietary_recommendations: 'Tingkatkan asupan protein hewani',
+        next_evaluation_date: '2026-11-19',
+        special_notes: 'Cek berat badan rutin',
+      };
+
+      const res = await ctx.request
+        .post('/api/consultations/nutritionist/consultations/10/follow-up')
+        .set('Authorization', bearer(ctx.ahliGiziToken))
+        .send(payload);
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.consultation_id).toBe('10');
+      expect(ctx.services.consultation.createFollowUp).toHaveBeenCalledWith('10', 15, payload);
+    });
+
+    it('GET /api/consultations/user/consultations/:id/follow-up returns follow-up for USER', async () => {
+      ctx.services.consultation.getUserFollowUp.mockResolvedValue({
+        follow_up_id: '99',
+        consultation_id: '10',
+        nutritionist_name: 'Dr. Gizi Test',
+        evaluation_summary: {
+          status_label: 'Status gizi baik',
+          recommendations: 'Tingkatkan asupan protein hewani',
+        },
+      });
+
+      const res = await ctx.request
+        .get('/api/consultations/user/consultations/10/follow-up')
+        .set('Authorization', bearer(ctx.userToken));
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.nutritionist_name).toBe('Dr. Gizi Test');
+      expect(ctx.services.consultation.getUserFollowUp).toHaveBeenCalledWith('10', 7);
+    });
+  });
 });

@@ -1,5 +1,6 @@
 const prisma = require("../config/database");
 const ApiError = require("../utils/ApiError");
+const rewardService = require("./reward.service");
 
 // ============================================
 // CONSTANTS & MAPPINGS
@@ -223,6 +224,20 @@ const createOrUpdateLog = async (userId, body) => {
       ...data,
     },
   });
+
+  try {
+    const dateStr = dateUTC.toISOString().slice(0, 10);
+    await rewardService.awardPoints(userId, {
+      jenisAktivitas: 'HEALTH_LOG',
+      poin: 10,
+      deskripsi: `Health Log Asupan Gizi (${data.fase})`,
+      referensiId: `HEALTH_LOG_${userId}_${data.fase}_${dateStr}`,
+    });
+    const currentStreak = await rewardService.calculateUserStreak(userId);
+    await rewardService.checkAndAwardStreakBonus(userId, currentStreak);
+  } catch (err) {
+    console.error('Failed to award points for health log:', err);
+  }
 
   return formatLog(log);
 };

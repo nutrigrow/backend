@@ -1,6 +1,7 @@
 const prisma = require("../config/database");
 const ApiError = require("../utils/ApiError");
 const aiService = require("./ai.service");
+const rewardService = require("./reward.service");
 
 // ============================================
 // PERCENTILE HELPERS
@@ -392,6 +393,18 @@ const createGrowthRecord = async (balitaId, userId, body) => {
       statusGizi: aiResult?.risk_level === "HIGH_ALERT" ? "STUNTED" : aiResult?.risk_level === "WARNING" ? "WASTED" : "NORMAL",
     },
   });
+
+  try {
+    const dateStr = date.toISOString().slice(0, 10);
+    await rewardService.awardPoints(userId, {
+      jenisAktivitas: 'LOG_PERTUMBUHAN',
+      poin: 20,
+      deskripsi: `Log Tinggi & Berat Badan (${balita.namaDepan})`,
+      referensiId: `LOG_GROWTH_${userId}_${dateStr}`,
+    });
+  } catch (err) {
+    console.error("Failed to award points for growth record:", err);
+  }
 
   return record;
 };

@@ -3,6 +3,7 @@ const prisma = require('../config/database');
 const ApiError = require('../utils/ApiError');
 const midtransClient = require('midtrans-client');
 const { compressAndSaveProductImage } = require('../utils/imageCompressor');
+const rewardService = require('./reward.service');
 
 const SHIPPING_COSTS = {
     STANDARD: 5000,
@@ -290,6 +291,22 @@ const updatePaymentStatusByOrderId = async ({
                 where: { transaksiId: existing.id },
                 data: { status: 'CONFIRMED' }
             });
+        }
+
+        if (nextStatusBayar === 'SUCCESS' && existing.jenisTransaksi === 'SHOP') {
+            const pointsToAward = Math.floor(existing.totalHarga / 1000);
+            if (pointsToAward > 0) {
+                try {
+                    await rewardService.awardPoints(existing.userId, {
+                        jenisAktivitas: 'BELANJA_NUTRISHOP',
+                        poin: pointsToAward,
+                        deskripsi: `Pembelian NutriShop (#${existing.midtransOrderId || existing.id})`,
+                        referensiId: `SHOP_PURCHASE_${existing.id}`,
+                    });
+                } catch (err) {
+                    console.error('Failed to award points for shop purchase:', err);
+                }
+            }
         }
 
         return order;

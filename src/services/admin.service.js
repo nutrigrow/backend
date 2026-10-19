@@ -6,6 +6,7 @@ const {
   compressAndSaveArticleImage,
 } = require("../utils/imageCompressor");
 const { BCRYPT_SALT_ROUNDS } = require("../utils/constants");
+const rewardService = require("./reward.service");
 
 const STATUS_BAYAR_VALUES = new Set([
   "PENDING",
@@ -1240,6 +1241,19 @@ const updateConsultation = async (id, body = {}) => {
     data,
     include: CONSULTATION_INCLUDE,
   });
+
+  if (updated.status === 'DONE' && existing.status !== 'DONE') {
+    try {
+      await rewardService.awardPoints(updated.userId, {
+        jenisAktivitas: 'KONSULTASI_SELESAI',
+        poin: 50,
+        deskripsi: 'Sesi Tele-Nutrition Selesai',
+        referensiId: `CONSULTATION_DONE_${updated.id}`,
+      });
+    } catch (err) {
+      console.error('Failed to award points for completed consultation:', err);
+    }
+  }
 
   return serializeConsultation(updated);
 };

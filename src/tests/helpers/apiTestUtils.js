@@ -42,6 +42,17 @@ export const testUsers = {
     emailVerifiedAt: new Date('2026-01-01T00:00:00.000Z'),
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
   },
+  ahliGizi: {
+    id: 15,
+    nama: 'Dr. Gizi Test',
+    email: 'ahligizi@example.com',
+    role: 'AHLI_GIZI',
+    avatarUrl: null,
+    isActive: true,
+    deletedAt: null,
+    emailVerifiedAt: new Date('2026-01-01T00:00:00.000Z'),
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  },
 };
 
 export const serviceMethodNames = {
@@ -105,8 +116,19 @@ export const serviceMethodNames = {
     'reschedule',
     'cancel',
     'confirmPayment',
+    'getConsultationUserSummary',
+    'createFollowUp',
+    'getUserFollowUp',
   ],
   article: ['getArticles', 'getArticleById', 'getRelatedArticles'],
+  reward: [
+    'getRewardSummary',
+    'getCatalog',
+    'getMissionsStatus',
+    'getPointHistory',
+    'redeemReward',
+    'recordArticleRead',
+  ],
   admin: [
     'getDashboard',
     'getUsers',
@@ -182,6 +204,7 @@ export const createApiTestContext = ({ users = {}, services = createServiceMocks
     [testUsers.user.id]: testUsers.user,
     [testUsers.admin.id]: testUsers.admin,
     [testUsers.inactive.id]: testUsers.inactive,
+    [testUsers.ahliGizi.id]: testUsers.ahliGizi,
     ...users,
   };
 
@@ -209,6 +232,7 @@ export const createApiTestContext = ({ users = {}, services = createServiceMocks
   mockCjsModule('../../services/consultation.service', services.consultation);
   mockCjsModule('../../services/article.service', services.article);
   mockCjsModule('../../services/admin.service', services.admin);
+  mockCjsModule('../../services/reward.service', services.reward);
 
   const app = require('../../app');
 
@@ -220,5 +244,6 @@ export const createApiTestContext = ({ users = {}, services = createServiceMocks
     userToken: createAccessToken(testUsers.user),
     adminToken: createAccessToken(testUsers.admin),
     inactiveToken: createAccessToken(testUsers.inactive),
+    ahliGiziToken: createAccessToken(testUsers.ahliGizi),
   };
 };

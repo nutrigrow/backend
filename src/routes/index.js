@@ -9,6 +9,7 @@ const specialistRoutes = require("./specialist.routes");
 const consultationRoutes = require("./consultation.routes");
 const articleRoutes = require("./article.routes");
 const adminRoutes = require("./admin.routes");
+const rewardRoutes = require("./reward.routes");
 
 // Mount route modules
 router.use("/auth", authRoutes);
@@ -18,6 +19,7 @@ router.use("/specialists", specialistRoutes);
 router.use("/consultations", consultationRoutes);
 router.use("/articles", articleRoutes);
 router.use("/admin", adminRoutes);
+router.use("/rewards", rewardRoutes);
 router.use("/", nutrishopRoutes);
 
 // Health check for API

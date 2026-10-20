@@ -625,7 +625,7 @@ const getGrowthSummary = async (balitaId, userId) => {
       avg_daily_fluid_glasses: avgFluid,
       mpasi_compliance: mpasiCompliance,
     },
-    disclaimer: "AI adalah alat skrining awal dan bukan pengganti diagnosis medis profesional. Konsultasikan kondisi tumbuh kembang anak dengan ahli gizi melalui Tele-Nutritionist.",
+    disclaimer: "AI adalah alat skrining awal dan bukan pengganti diagnosis medis profesional. Konsultasikan kondisi tumbuh kembang anak dengan ahli gizi melalui Tele-Consultation.",
   };
 };
 

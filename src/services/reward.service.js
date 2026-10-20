@@ -21,7 +21,7 @@ const REWARD_CATALOG = [
   },
   {
     id: 'tele-1',
-    title: '1 Sesi Tele-Nutrition Gratis',
+    title: '1 Sesi Tele-Consultation Gratis',
     description: 'Konsultasi 30 menit bersama dokter spesialis gizi anak NutriGrow.',
     cost: 800,
     category: 'SERVICE',
@@ -305,7 +305,7 @@ const getMissionsStatus = async (userId) => {
     },
     {
       id: 'tele-nutri',
-      title: 'Konsultasi Tele-Nutrition',
+      title: 'Konsultasi Tele-Consultation',
       subtitle: '+50 Poin / Sesi Selesai',
       tone: 'purple',
       icon: 'IconVideo',

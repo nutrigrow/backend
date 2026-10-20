@@ -139,6 +139,30 @@ const calcAgeDays = (birthDate, measureDate) => {
   return Math.floor(diffMs / (1000 * 60 * 60 * 24));
 };
 
+const isFutureDateWIB = (dateInput) => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).formatToParts(new Date());
+
+  const year = Number(parts.find((p) => p.type === 'year').value);
+  const month = Number(parts.find((p) => p.type === 'month').value);
+  const day = Number(parts.find((p) => p.type === 'day').value);
+
+  const todayWIBMidnightUTC = new Date(Date.UTC(year, month - 1, day));
+  const checkDate = dateInput instanceof Date ? dateInput : new Date(dateInput);
+
+  const checkDateUTC = new Date(Date.UTC(
+    checkDate.getUTCFullYear(),
+    checkDate.getUTCMonth(),
+    checkDate.getUTCDate()
+  ));
+
+  return checkDateUTC > todayWIBMidnightUTC;
+};
+
 // ============================================
 // OWNERSHIP HELPER
 // ============================================
@@ -251,7 +275,7 @@ const createChild = async (userId, body) => {
   const { namaDepan, namaAkhir, tanggalLahir, jenisKelamin } = body;
   
   const birthDate = new Date(tanggalLahir);
-  if (birthDate > new Date()) {
+  if (isFutureDateWIB(birthDate)) {
     throw ApiError.badRequest("Tanggal lahir tidak boleh di masa depan");
   }
 
@@ -301,7 +325,7 @@ const updateChild = async (balitaId, userId, body) => {
   const { namaDepan, namaAkhir, tanggalLahir, jenisKelamin } = body;
   
   const birthDate = new Date(tanggalLahir);
-  if (birthDate > new Date()) {
+  if (isFutureDateWIB(birthDate)) {
     throw ApiError.badRequest("Tanggal lahir tidak boleh di masa depan");
   }
 
@@ -347,7 +371,7 @@ const createGrowthRecord = async (balitaId, userId, body) => {
   const { tinggiBadan, beratBadan, tanggalCatat } = body;
 
   const date = new Date(tanggalCatat);
-  if (date > new Date()) {
+  if (isFutureDateWIB(date)) {
     throw ApiError.badRequest("Tanggal pengukuran tidak boleh di masa depan");
   }
 
@@ -425,7 +449,7 @@ const updateGrowthRecord = async (recordId, userId, body) => {
 
   const { tinggiBadan, beratBadan, tanggalCatat } = body;
   const date = new Date(tanggalCatat);
-  if (date > new Date()) {
+  if (isFutureDateWIB(date)) {
     throw ApiError.badRequest("Tanggal pengukuran tidak boleh di masa depan");
   }
 

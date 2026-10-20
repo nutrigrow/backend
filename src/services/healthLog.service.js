@@ -47,13 +47,21 @@ const parseDateUTC = (dateStr) => {
 };
 
 /**
- * Return today's date at midnight UTC.
+ * Return today's date in Asia/Jakarta (WIB) at midnight UTC for consistent calendar comparison.
  */
 const todayUTC = () => {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).formatToParts(new Date());
+
+  const year = Number(parts.find((p) => p.type === 'year').value);
+  const month = Number(parts.find((p) => p.type === 'month').value);
+  const day = Number(parts.find((p) => p.type === 'day').value);
+
+  return new Date(Date.UTC(year, month - 1, day));
 };
 
 /**

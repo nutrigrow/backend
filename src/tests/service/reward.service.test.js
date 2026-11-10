@@ -182,4 +182,36 @@ describe('Reward Service', () => {
       expect(res.message).toContain('Batas harian');
     });
   });
+
+  describe('getMissionsStatus', () => {
+    it('marks log-gizi as done when user has logged 1 health log today', async () => {
+      prisma.rekamPertumbuhan.count.mockResolvedValue(1);
+      prisma.logKesehatan.findMany.mockResolvedValue([{ fase: 'HAMIL' }]);
+      prisma.riwayatBacaArtikel.count.mockResolvedValue(3);
+      prisma.konsultasi.count.mockResolvedValue(1);
+
+      const missions = await rewardService.getMissionsStatus(10);
+      const giziMission = missions.find((m) => m.id === 'log-gizi');
+
+      expect(giziMission).toBeDefined();
+      expect(giziMission.status).toBe('done');
+      expect(giziMission.progress).toBe(1);
+      expect(giziMission.max).toBe(1);
+    });
+
+    it('marks log-gizi as action when user has not logged health log today', async () => {
+      prisma.rekamPertumbuhan.count.mockResolvedValue(0);
+      prisma.logKesehatan.findMany.mockResolvedValue([]);
+      prisma.riwayatBacaArtikel.count.mockResolvedValue(0);
+      prisma.konsultasi.count.mockResolvedValue(0);
+
+      const missions = await rewardService.getMissionsStatus(10);
+      const giziMission = missions.find((m) => m.id === 'log-gizi');
+
+      expect(giziMission).toBeDefined();
+      expect(giziMission.status).toBe('action');
+      expect(giziMission.progress).toBe(0);
+      expect(giziMission.max).toBe(1);
+    });
+  });
 });

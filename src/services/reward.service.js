@@ -51,11 +51,18 @@ const STREAK_MILESTONES = {
   30: 200,
 };
 
-const getTodayDateStr = (date = new Date()) => {
-  const y = date.getUTCFullYear();
-  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const d = String(date.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+const WIB_DATE_FORMAT = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Jakarta',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+const getTodayDateStr = (date = new Date()) => WIB_DATE_FORMAT.format(date);
+
+const getTodayStartUTC = (date = new Date()) => {
+  const [y, m, d] = WIB_DATE_FORMAT.format(date).split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -92,7 +99,7 @@ const calculateUserStreak = async (userId, now = new Date()) => {
     )
   );
 
-  const runner = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const runner = getTodayStartUTC(now);
   const todayStr = getTodayDateStr(runner);
   runner.setUTCDate(runner.getUTCDate() - 1);
   const yesterdayStr = getTodayDateStr(runner);
@@ -104,7 +111,7 @@ const calculateUserStreak = async (userId, now = new Date()) => {
 
   // Hitung mundur hari berturut-turut
   let streak = 0;
-  const cursor = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const cursor = getTodayStartUTC(now);
   if (!dateSet.has(getTodayDateStr(cursor))) {
     cursor.setUTCDate(cursor.getUTCDate() - 1);
   }
@@ -158,7 +165,8 @@ const checkAndAwardStreakBonus = async (userId, currentStreak, now = new Date())
     const days = parseInt(daysStr, 10);
     if (currentStreak >= days) {
       // Hitung tanggal awal streak untuk mengunci milestone siklus ini
-      const streakStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - currentStreak + 1);
+      const streakStartDate = getTodayStartUTC(now);
+      streakStartDate.setUTCDate(streakStartDate.getUTCDate() - currentStreak + 1);
       const streakStartStr = getTodayDateStr(streakStartDate);
       const referensiId = `STREAK_${days}_${streakStartStr}`;
 
@@ -228,8 +236,8 @@ const getCatalog = async () => {
 const getMissionsStatus = async (userId) => {
   const today = new Date();
   const todayDateStr = getTodayDateStr(today);
-  const startOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
-  const endOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + 1));
+  const startOfDay = getTodayStartUTC(today);
+  const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
 
   const [growthToday, healthLogsToday, articlesReadToday, teleSessionsToday] = await Promise.all([
     // Log pertumbuhan anak hari ini
@@ -282,14 +290,14 @@ const getMissionsStatus = async (userId) => {
     {
       id: 'log-gizi',
       title: 'Health Log Asupan Gizi',
-      subtitle: `+10 Poin (Progres ${Math.min(uniqueFaseCount, 3)}/3 Kategori)`,
+      subtitle: '+10 Poin per log harian (Maks 1x/hari)',
       tone: 'orange',
       icon: 'IconUtensils',
-      status: uniqueFaseCount >= 3 ? 'done' : 'action',
-      actionLabel: uniqueFaseCount >= 3 ? 'Selesai' : 'Lanjut',
+      status: healthLogsToday.length > 0 ? 'done' : 'action',
+      actionLabel: healthLogsToday.length > 0 ? 'Selesai' : 'Lanjut',
       to: '/health-log',
-      progress: Math.min(uniqueFaseCount, 3),
-      max: 3,
+      progress: Math.min(healthLogsToday.length, 1),
+      max: 1,
     },
     {
       id: 'edu-mpasi',
@@ -323,7 +331,7 @@ const getMissionsStatus = async (userId) => {
  */
 const recordArticleRead = async (userId, artikelId) => {
   const today = new Date();
-  const startOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  const startOfDay = getTodayStartUTC(today);
 
   // Cek berapa artikel yang sudah dibaca hari ini
   const countToday = await prisma.riwayatBacaArtikel.count({

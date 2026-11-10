@@ -10,6 +10,7 @@ const { prisma } = vi.hoisted(() => ({
       findUnique: vi.fn(),
       upsert: vi.fn(),
       findMany: vi.fn(),
+      deleteMany: vi.fn(),
     },
     rekamPertumbuhan: {
       findMany: vi.fn(),
@@ -156,5 +157,21 @@ describe('healthLogService.getInsight', () => {
     await expect(healthLogService.getInsight(7)).resolves.toEqual({
       has_log_today: false,
     });
+  });
+});
+
+describe('healthLogService.deleteLog', () => {
+  it('deletes log entry when owned by user', async () => {
+    prisma.logKesehatan.deleteMany.mockResolvedValue({ count: 1 });
+    const res = await healthLogService.deleteLog(7, 10);
+    expect(res).toEqual({ id: 10 });
+    expect(prisma.logKesehatan.deleteMany).toHaveBeenCalledWith({
+      where: { id: 10, userId: 7 },
+    });
+  });
+
+  it('throws notFound error when log does not exist or not owned', async () => {
+    prisma.logKesehatan.deleteMany.mockResolvedValue({ count: 0 });
+    await expect(healthLogService.deleteLog(7, 99)).rejects.toThrow('Catatan kesehatan tidak ditemukan');
   });
 });

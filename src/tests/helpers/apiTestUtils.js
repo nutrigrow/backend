@@ -105,6 +105,7 @@ export const serviceMethodNames = {
     'createOrUpdateLog',
     'getTodayLog',
     'getAllLogs',
+    'deleteLog',
     'getInsight',
     'getNotifications',
   ],

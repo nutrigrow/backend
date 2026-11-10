@@ -125,4 +125,43 @@ describe('Health Log API', () => {
     expect(res.body.data).toEqual([{ id: 1 }]);
     expect(ctx.services.healthLog.getAllLogs).toHaveBeenCalledWith(7);
   });
+
+  it('API-P1-022 DELETE /api/health-logs/:id requires authentication', async () => {
+    const res = await ctx.request.delete('/api/health-logs/5');
+
+    expect(res.status).toBe(401);
+    expect(ctx.services.healthLog.deleteLog).not.toHaveBeenCalled();
+  });
+
+  it('API-P1-022 DELETE /api/health-logs/:id deletes log of authenticated user', async () => {
+    ctx.services.healthLog.deleteLog.mockResolvedValue({ id: 5 });
+
+    const res = await ctx.request
+      .delete('/api/health-logs/5')
+      .set('Authorization', bearer(ctx.userToken));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ id: 5 });
+    expect(ctx.services.healthLog.deleteLog).toHaveBeenCalledWith(7, 5);
+  });
+
+  it('API-P1-022 DELETE /api/health-logs/:id rejects invalid log ID', async () => {
+    const res = await ctx.request
+      .delete('/api/health-logs/abc')
+      .set('Authorization', bearer(ctx.userToken));
+
+    expect(res.status).toBe(400);
+    expect(ctx.services.healthLog.deleteLog).not.toHaveBeenCalled();
+  });
+
+  it('API-P1-022 DELETE /api/health-logs/:id handles not found error', async () => {
+    ctx.services.healthLog.deleteLog.mockRejectedValue(ApiError.notFound('Catatan kesehatan tidak ditemukan'));
+
+    const res = await ctx.request
+      .delete('/api/health-logs/999')
+      .set('Authorization', bearer(ctx.userToken));
+
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('Catatan kesehatan tidak ditemukan');
+  });
 });

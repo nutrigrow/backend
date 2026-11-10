@@ -473,10 +473,26 @@ const getNotifications = async (userId) => {
   };
 };
 
+/**
+ * Delete a health log entry owned by the user
+ */
+const deleteLog = async (userId, logId) => {
+  const result = await prisma.logKesehatan.deleteMany({
+    where: { id: logId, userId },
+  });
+
+  if (result.count === 0) {
+    throw ApiError.notFound('Catatan kesehatan tidak ditemukan');
+  }
+
+  return { id: logId };
+};
+
 module.exports = {
   createOrUpdateLog,
   getTodayLog,
   getAllLogs,
+  deleteLog,
   getInsight,
   getNotifications,
 };
